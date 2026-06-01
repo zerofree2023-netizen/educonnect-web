@@ -95,6 +95,140 @@ function pickProgramKey(row: any) {
 // 通用：从费用说明/招生简章文本中按“学科门类/类别”回填学费
 // 不区分本科/硕士/博士；只依赖 row 的 discipline/category 字段
 // ================================
+
+function isLikelyTuitionPolicyOnlyPage(input: {
+  rawText?: string | null;
+  sourceUrl?: string | null;
+  linkPurpose?: string | null;
+}) {
+  const raw = String(input?.rawText || "");
+  const url = String(input?.sourceUrl || "").toLowerCase();
+  const purpose = String(input?.linkPurpose || "").toLowerCase();
+
+  const hasFeeTable =
+    /招生专业收费表|学费[:：]?详见表|报名费与学费|学位类别[\s\S]{0,120}文科类[\s\S]{0,120}医学类/.test(raw);
+
+  const hasTuitionWords =
+    /学费|收费|费用|元\/人\/学年|元\/学年|RMB\/Year|RMB\s*\/\s*Year/.test(raw);
+
+  const looksGuide =
+    /招生简章|申请时间|申请材料|奖学金项目|入学与报到|报名费/.test(raw);
+
+  if (purpose === "tuition" && hasTuitionWords) return true;
+  if (url.includes("iso.sysu.edu.cn") && url.includes("/zfxm/") && hasTuitionWords) return true;
+  if (hasFeeTable && looksGuide) return true;
+
+  return false;
+}
+
+
+function applySysuFeeTableTuitionByDiscipline(rows: any[]) {
+  if (!Array.isArray(rows) || rows.length === 0) return rows || [];
+
+  const allText = rows
+    .map((r: any) =>
+      [
+        r?.tuition_note,
+        r?.tuition_text,
+        r?.raw_block,
+        r?.raw_line,
+      ]
+        .filter(Boolean)
+        .join("； ")
+    )
+    .join("； ");
+
+  const isSysuFeeTable =
+    /中山大学/.test(allText) &&
+    /招生专业收费表/.test(allText) &&
+    /文科类/.test(allText) &&
+    /理科、?工科和农科类/.test(allText) &&
+    /医学类/.test(allText);
+
+  if (!isSysuFeeTable) return rows;
+
+  const isMaster = /硕士/.test(allText);
+  const isPhd = /博士/.test(allText);
+  const isUg = /本科|学士/.test(allText);
+
+  let liberal: number | null = null;
+  let stem: number | null = null;
+  let medical: number | null = null;
+
+  if (isMaster) {
+    liberal = 30000;
+    stem = 39000;
+    medical = 55000;
+  } else if (isPhd) {
+    liberal = 34000;
+    stem = 44200;
+    medical = 65000;
+  } else if (isUg) {
+    liberal = 26000;
+    stem = 33800;
+    medical = 48000;
+  }
+
+  if (!liberal || !stem || !medical) return rows;
+
+  const bucketByMajorCode = (code: any) => {
+    const c = String(code || "").trim();
+    if (!c) return null;
+
+    const two = c.slice(0, 2);
+    const four = c.slice(0, 4);
+
+    if (two === "10" || two === "11" || four === "1051" || four === "1052") return "medical";
+    if (["01", "02", "03", "04", "05", "06", "12", "13"].includes(two)) return "liberal";
+    if (["07", "08", "09"].includes(two)) return "stem";
+    if (two === "14") return "stem";
+    return null;
+  };
+
+  const bucketByDiscipline = (discipline: any) => {
+    const d = String(discipline || "").trim();
+    if (!d) return null;
+
+    if (/医学|口腔医学|临床医学|护理|药学|公共卫生|中医学/.test(d)) return "medical";
+    if (/理学|工学|农学|交叉学科/.test(d)) return "stem";
+    if (/文学|经济学|法学|哲学|教育学|历史学|管理学|艺术学/.test(d)) return "liberal";
+
+    return null;
+  };
+
+  return rows.map((r: any) => {
+    const next: any = { ...(r || {}) };
+
+    if (next.tuition_rmb_per_year != null && Number(next.tuition_rmb_per_year) > 0) {
+      return next;
+    }
+
+    const bucket =
+      bucketByDiscipline(
+        next.discipline_category_text ||
+        next.discipline_category ||
+        next.subject_category ||
+        next.discipline_text
+      ) ||
+      bucketByMajorCode(next.major_code);
+
+    let fee: number | null = null;
+    if (bucket === "liberal") fee = liberal;
+    if (bucket === "stem") fee = stem;
+    if (bucket === "medical") fee = medical;
+
+    if (!fee) return next;
+
+    next.tuition_rmb_per_year = fee;
+    next.tuition_total_rmb = null;
+    next.tuition_is_per_year = true;
+    next.tuition_note = `${fee.toLocaleString("en-US")} RMB/Year`;
+    next.tuition_source_url = next.tuition_source_url || "https://iso.sysu.edu.cn/cn/zfxm/1420565.htm";
+
+    return next;
+  });
+}
+
 function applyTuitionFromNoteByDiscipline(
   rows: any[],
   meta: any,
@@ -4414,6 +4548,28 @@ try {
 
 
 
+
+try {
+  if (
+    tuitionPolicyOnlyPage &&
+    Array.isArray(nextCatalog) &&
+    nextCatalog.length > 0
+  ) {
+    console.log("[TUITION_POLICY_ONLY_FORCE_EMPTY_NEXT_CATALOG_LATE]", {
+      kind,
+      linkPurpose,
+      source_url: source_url || source_url_raw || null,
+      before: nextCatalog.length,
+      first: nextCatalog[0] || null,
+    });
+
+    nextCatalog.length = 0;
+    (parsed as any).program_catalog = [];
+  }
+} catch (e) {
+  console.error("[TUITION_POLICY_ONLY_FORCE_EMPTY_NEXT_CATALOG_LATE] failed:", e);
+}
+
 console.log("[UPLOAD_NEXT_CATALOG_DEBUG]", {
   kind,
   linkPurpose,
@@ -6375,16 +6531,58 @@ if (
   });
 }
 
-const uploadHasCatalogRows = Array.isArray(nextCatalog) && nextCatalog.length > 0;
+const tuitionPolicyOnlyPage =
+  isLikelyTuitionPolicyOnlyPage({
+    rawText: raw_text,
+    sourceUrl: source_url || source_url_raw || null,
+    linkPurpose,
+  }) ||
+  (
+    /招生专业收费表|报名费与学费|学费[:：]?详见表/.test(String(raw_text || "")) &&
+    /文科类/.test(String(raw_text || "")) &&
+    /医学类/.test(String(raw_text || ""))
+  ) ||
+  (
+    String(source_url || source_url_raw || "").toLowerCase().includes("iso.sysu.edu.cn") &&
+    String(source_url || source_url_raw || "").toLowerCase().includes("/zfxm/")
+  );
+
+if (
+  tuitionPolicyOnlyPage &&
+  Array.isArray(nextCatalog) &&
+  nextCatalog.length > 0
+) {
+  console.log("[TUITION_POLICY_ONLY_CLEAR_NEXT_CATALOG_BEFORE_UPLOAD_CLASSIFY]", {
+    kind,
+    linkPurpose,
+    filename: out?.filename || null,
+    source_url: source_url || source_url_raw || null,
+    nextCatalogBeforeClear: nextCatalog.length,
+    prevCatalogLen: Array.isArray(prevCatalog) ? prevCatalog.length : -1,
+    firstNext: nextCatalog[0] || null,
+  });
+
+  nextCatalog.length = 0;
+  (parsed as any).program_catalog = [];
+}
+
+const uploadHasCatalogRows =
+  !tuitionPolicyOnlyPage &&
+  Array.isArray(nextCatalog) &&
+  nextCatalog.length > 0;
 
 // 如果本次已经解析出了专业目录 rows，就必须按 catalog 处理。
 // 有些目录 PDF 的备注里包含“学费”，会被 classifyProgramDoc 误判成 tuition_doc，不能因此丢掉 nextCatalog。
+// 但纯费用页/招生简章页即使被 generic parser 误解析出 rows，也必须按 tuition supplement 处理。
 const isTuitionUpload =
-  !uploadHasCatalogRows &&
+  tuitionPolicyOnlyPage ||
   (
-    linkPurpose === "tuition" ||
-    isFudanGradSciMedTuitionGuide ||
-    docClass?.doc_type === "tuition_doc"
+    !uploadHasCatalogRows &&
+    (
+      linkPurpose === "tuition" ||
+      isFudanGradSciMedTuitionGuide ||
+      docClass?.doc_type === "tuition_doc"
+    )
   );
 
 const isScholarshipUpload = linkPurpose === "scholarship";
@@ -8438,6 +8636,7 @@ try {
   }
 
   if (
+    !isLikelyTuitionPolicyOnlyPage({ rawText: raw_text, sourceUrl: source_url || source_url_raw || null, linkPurpose }) &&
     Array.isArray(mergedCatalogFinal) &&
     mergedCatalogFinal.length === 0 &&
     Array.isArray(nextCatalog) &&
@@ -8468,6 +8667,7 @@ try {
 
   if (
     isGenericCatalog &&
+    !isLikelyTuitionPolicyOnlyPage({ rawText: raw_text, sourceUrl: source_url || source_url_raw || null, linkPurpose }) &&
     Array.isArray(nextCatalog) &&
     nextCatalog.length > 0 &&
     Array.isArray(mergedCatalogFinal) &&
@@ -12749,6 +12949,10 @@ const mergedParsed =
               null,
           },
           finalTuitionText,
+        );
+
+        (mergedParsed as any).program_catalog = applySysuFeeTableTuitionByDiscipline(
+          (mergedParsed as any).program_catalog,
         );
 
         console.log("[FINAL_TUITION_BACKFILL]", {
