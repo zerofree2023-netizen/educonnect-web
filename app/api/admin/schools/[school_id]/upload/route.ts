@@ -90,6 +90,153 @@ function pickProgramKey(row: any) {
   return en || "";
 }
 
+
+// ================================
+// 通用：从费用说明/招生简章文本中按“学科门类/类别”回填学费
+// 不区分本科/硕士/博士；只依赖 row 的 discipline/category 字段
+// ================================
+function applyTuitionFromNoteByDiscipline(
+  rows: any[],
+  meta: any,
+  rawText?: string,
+): any[] {
+  if (!Array.isArray(rows) || rows.length === 0) return rows || [];
+
+  const rowLevelTuitionNotes = (rows || [])
+    .slice(0, 800)
+    .map((r: any) =>
+      r?.tuition_note ||
+      r?.tuition_policy_text ||
+      r?.tuition_text ||
+      r?.fee_text ||
+      "",
+    )
+    .filter(Boolean)
+    .join("\n");
+
+  const text = String(
+    [
+      meta?.tuition_note,
+      meta?.tuition_policy_text,
+      meta?.tuition_text,
+      meta?.fee_text,
+      meta?.notes,
+      meta?.remarks,
+      rowLevelTuitionNotes,
+      rawText,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  )
+    .replace(/\u00a0/g, " ")
+    .replace(/[，,]/g, "")
+    .replace(/\s+/g, " ");
+
+  if (!text.trim()) return rows;
+
+  const hasFeeWords =
+    /学费|收费|费用|元\/人\/学年|元\/学年|RMB\/Year|RMB\s*\/\s*Year|per\s*year/i.test(
+      text,
+    );
+
+  if (!hasFeeWords) return rows;
+
+  const amountHit = (amount: number) => {
+    const a = String(amount);
+    const c = amount.toLocaleString("en-US");
+    return text.includes(a) || text.includes(c);
+  };
+
+  const hasArts =
+    /文科类|人文社科|文史哲|文学|法学|管理学|哲学|历史学|教育学|经济学/.test(text);
+  const hasStem =
+    /理科|工科|农科|理工|理工农|理科工科农科|理科、工科和农科/.test(text);
+  const hasMedical = /医学类|医学/.test(text);
+
+  const feeByBucket: Record<string, number> = {};
+
+  if (hasArts && amountHit(34000)) feeByBucket.arts = 34000;
+  if (hasStem && amountHit(44200)) feeByBucket.stem = 44200;
+  if (hasMedical && amountHit(65000)) feeByBucket.medical = 65000;
+
+  if (hasArts && amountHit(26000)) feeByBucket.arts = feeByBucket.arts || 26000;
+  if (hasStem && amountHit(33800)) feeByBucket.stem = feeByBucket.stem || 33800;
+  if (hasMedical && amountHit(48000)) feeByBucket.medical = feeByBucket.medical || 48000;
+
+  if (
+    feeByBucket.arts == null &&
+    feeByBucket.stem == null &&
+    feeByBucket.medical == null
+  ) {
+    return rows;
+  }
+
+  const sourceUrl =
+    String(meta?.tuition_source_url || meta?.source_url || "").trim() || null;
+
+  function disciplineText(row: any) {
+    return String(
+      row?.discipline_category_text ||
+        row?.discipline_category ||
+        row?.subject_category ||
+        row?.subject_category_text ||
+        row?.category_text ||
+        row?.category ||
+        row?.discipline ||
+        row?.field_category ||
+        "",
+    ).trim();
+  }
+
+  function bucketForDiscipline(d: string) {
+    if (!d) return null;
+
+    if (/医学|临床医学|口腔医学|公共卫生|护理|药学|中医学/.test(d)) {
+      return "medical";
+    }
+
+    if (
+      /理学|工学|农学|交叉学科|理科|工科|农科|工程|材料|计算机|电子|机械|土木|化学|物理|数学|生物|地理|海洋|大气|环境|能源|航空|智能|软件|网络空间/.test(
+        d,
+      )
+    ) {
+      return "stem";
+    }
+
+    if (
+      /文学|法学|管理学|哲学|历史学|教育学|艺术学|经济学|社会学|新闻|外语|语言|政治|公共管理/.test(
+        d,
+      )
+    ) {
+      return "arts";
+    }
+
+    return null;
+  }
+
+  return rows.map((row) => {
+    const out: any = { ...(row || {}) };
+
+    if (out.tuition_rmb_per_year != null) return out;
+
+    const bucket = bucketForDiscipline(disciplineText(out));
+    const fee = bucket ? feeByBucket[bucket] : null;
+
+    if (fee == null) return out;
+
+    out.tuition_rmb_per_year = fee;
+    out.tuition_total_rmb = null;
+    out.tuition_is_per_year = true;
+    out.tuition_note =
+      out.tuition_note && String(out.tuition_note).trim()
+        ? String(out.tuition_note)
+        : `${fee.toLocaleString("en-US")} RMB/Year；根据费用说明按学科门类匹配`;
+    out.tuition_source_url = out.tuition_source_url || sourceUrl;
+
+    return out;
+  });
+}
+
 function buildRowTags(row: any): string[] {
   const tags: string[] = [];
 
@@ -12569,6 +12716,62 @@ const mergedParsed =
     }
     // ===== HIT_FINAL_ROW_FEES_BEFORE_UPSERT_END =====
 
+
+
+    // FINAL TUITION BACKFILL：入库前最后一次按费用说明/学科门类回填学费
+    try {
+      if (
+        mergedParsed &&
+        Array.isArray((mergedParsed as any).program_catalog) &&
+        (mergedParsed as any).program_catalog.length > 0
+      ) {
+        const finalTuitionText = [
+          raw_text,
+          ...((mergedParsed as any).program_catalog || [])
+            .slice(0, 800)
+            .map((r: any) =>
+              r?.tuition_note ||
+              r?.tuition_policy_text ||
+              r?.tuition_text ||
+              r?.fee_text ||
+              "",
+            )
+            .filter(Boolean),
+        ].join("\n");
+
+        (mergedParsed as any).program_catalog = applyTuitionFromNoteByDiscipline(
+          (mergedParsed as any).program_catalog,
+          {
+            ...(((mergedParsed as any).program_catalog_meta) || {}),
+            tuition_source_url:
+              mergedTuitionUrl ||
+              ((mergedParsed as any).program_catalog_meta || {})?.tuition_source_url ||
+              null,
+          },
+          finalTuitionText,
+        );
+
+        console.log("[FINAL_TUITION_BACKFILL]", {
+          rows: Array.isArray((mergedParsed as any).program_catalog)
+            ? (mergedParsed as any).program_catalog.length
+            : -1,
+          filled: Array.isArray((mergedParsed as any).program_catalog)
+            ? (mergedParsed as any).program_catalog.filter(
+                (r: any) => r?.tuition_rmb_per_year != null,
+              ).length
+            : -1,
+          sample: Array.isArray((mergedParsed as any).program_catalog)
+            ? (mergedParsed as any).program_catalog.slice(0, 3).map((r: any) => ({
+                discipline_category_text: r?.discipline_category_text,
+                tuition_rmb_per_year: r?.tuition_rmb_per_year,
+                tuition_note: r?.tuition_note,
+              }))
+            : [],
+        });
+      }
+    } catch (e) {
+      console.error("[FINAL_TUITION_BACKFILL] failed:", e);
+    }
 
     const upsertResp = await supabase
       .from("school_files")
