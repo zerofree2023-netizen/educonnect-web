@@ -4551,7 +4551,7 @@ try {
 
 try {
   if (
-    tuitionPolicyOnlyPage &&
+    isLikelyTuitionPolicyOnlyPage({ rawText: raw_text, sourceUrl: source_url || source_url_raw || null, linkPurpose }) &&
     Array.isArray(nextCatalog) &&
     nextCatalog.length > 0
   ) {
