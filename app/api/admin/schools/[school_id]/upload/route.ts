@@ -1329,7 +1329,7 @@ async function extractTextFromUploadedFile(file: File, filenameGuess: string) {
   const mime = String((file as any)?.type || "").toLowerCase();
   const buf = Buffer.from(await file.arrayBuffer());
 
-  console.log("[UPLOAD_FILE_DEBUG]", {
+  if (process.env.DEBUG_INGEST === "1") console.log("[UPLOAD_FILE_DEBUG]", {
     realName,
     filenameGuess,
     filename,
@@ -1344,7 +1344,7 @@ async function extractTextFromUploadedFile(file: File, filenameGuess: string) {
   if (isPdf(filename, mime)) {
     const t = await pdfToTextByPdftotext(buf);
 
-    console.log("[UPLOAD_PDF_TEXT_DEBUG]", {
+    if (process.env.DEBUG_INGEST === "1") console.log("[UPLOAD_PDF_TEXT_DEBUG]", {
       filename,
       textLen: t.length,
       preview: t.slice(0, 500),
@@ -4909,7 +4909,7 @@ try {
     !parserNowBeforeGeneric.includes("nju_") &&
     !parserNowBeforeGeneric.includes("xjtu_");
 
-  console.log("[GENERIC_PROGRAM_CATALOG_FORCE_CHECK]", {
+  if (process.env.DEBUG_INGEST === "1") console.log("[GENERIC_PROGRAM_CATALOG_FORCE_CHECK]", {
     kind,
     rowsBefore: Array.isArray(nextCatalog) ? nextCatalog.length : -1,
     looksLikeProgramCatalog,
@@ -4941,7 +4941,7 @@ try {
         source: "generic_file_parser",
       };
 
-      console.log("[GENERIC_PROGRAM_CATALOG_FORCE]", {
+      if (process.env.DEBUG_INGEST === "1") console.log("[GENERIC_PROGRAM_CATALOG_FORCE]", {
         rows: genericCatalog.rows.length,
         meta: genericCatalog.meta,
         first: genericCatalog.rows[0] || null,
@@ -5009,7 +5009,7 @@ try {
   ) {
     const fs = await import("fs/promises");
     await fs.writeFile("/tmp/xjtu_grad_raw.txt", debugRaw, "utf8");
-    console.log("[DEBUG_DUMP_XJTU_GRAD_RAW_TEXT]", {
+    if (process.env.DEBUG_INGEST === "1") console.log("[DEBUG_DUMP_XJTU_GRAD_RAW_TEXT]", {
       filename: debugName,
       kind,
       rawLen: debugRaw.length,
@@ -5165,7 +5165,7 @@ try {
 
 
 
-console.log("[UPLOAD_NEXT_CATALOG_DEBUG]", {
+if (process.env.DEBUG_INGEST === "1") console.log("[UPLOAD_NEXT_CATALOG_DEBUG]", {
   kind,
   linkPurpose,
   content_type,
@@ -5664,7 +5664,7 @@ function parseNjuMasterHtmlDetailByTitle(args: {
 // For NJU master single-program HTML detail pages like:
 // https://hwxy.nju.edu.cn/lxnd/zsxx/ssxm/gxyj/index.html
 // run title-based parser even when htmlStrategy.shouldParseProgramDetail did not fire.
-console.log("[NJU_MASTER_HTML_TITLE_DETAIL_FALLBACK_CHECK]", {
+if (process.env.DEBUG_INGEST === "1") console.log("[NJU_MASTER_HTML_TITLE_DETAIL_FALLBACK_CHECK]", {
   kind,
   content_type,
   source_url,
@@ -9886,7 +9886,7 @@ try {
       whuGradFeeSignal.includes("Wuhan University")
     );
 
-  console.log("[WHU_GRAD_FEE_DOC_PATCH_CHECK]", {
+  if (process.env.DEBUG_INGEST === "1") console.log("[WHU_GRAD_FEE_DOC_PATCH_CHECK]", {
     kind,
     rowsBefore: Array.isArray(mergedCatalogFinal) ? mergedCatalogFinal.length : -1,
     isWhuGradFeeDoc,
@@ -10219,7 +10219,7 @@ try {
         .map(([k]) => k),
     };
 
-    console.log("[GENERIC_GUIDE_SECTION_SPLIT]", {
+    if (process.env.DEBUG_INGEST === "1") console.log("[GENERIC_GUIDE_SECTION_SPLIT]", {
       rows: mergedCatalogFinal.length,
       changed,
       keys: Object.entries(sections).filter(([, v]) => Boolean(v)).map(([k]) => k),
@@ -10359,7 +10359,7 @@ try {
       generic_guide_field_clean_changed: changed,
     };
 
-    console.log("[GENERIC_GUIDE_FIELD_CLEAN]", {
+    if (process.env.DEBUG_INGEST === "1") console.log("[GENERIC_GUIDE_FIELD_CLEAN]", {
       rows: mergedCatalogFinal.length,
       changed,
       first: mergedCatalogFinal[0] || null,
@@ -11417,7 +11417,7 @@ try {
 
 
 
-console.log("[UPLOAD_FINAL_CATALOG_DEBUG]", {
+if (process.env.DEBUG_INGEST === "1") console.log("[UPLOAD_FINAL_CATALOG_DEBUG]", {
   kind,
   linkPurpose,
   isForcedStructuredParser,
@@ -13552,7 +13552,7 @@ const mergedParsed =
           (mergedParsed as any).program_catalog,
         );
 
-        console.log("[FINAL_TUITION_BACKFILL]", {
+        if (process.env.DEBUG_INGEST === "1") console.log("[FINAL_TUITION_BACKFILL]", {
           rows: Array.isArray((mergedParsed as any).program_catalog)
             ? (mergedParsed as any).program_catalog.length
             : -1,
