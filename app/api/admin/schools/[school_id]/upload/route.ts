@@ -52,6 +52,8 @@ import {
   getXjtuGradTuitionNote,
   getXjtuGradTuitionRmbPerYear,
 } from "@/lib/server/ingest/profiles/xjtu";
+import { parseGenericAdmissionBrochureUndergradPdf } from "@/lib/server/parsers/genericAdmissionBrochureUndergradPdf";
+import { parseBitGraduateAdmissionBrochurePdf } from "@/lib/server/parsers/bitGraduateAdmissionBrochurePdf";
 
 
 
@@ -4394,6 +4396,469 @@ try {
 // ===== WHU_UG_DOCX_BILINGUAL_MERGE_END =====
 
 
+
+
+
+
+// ===== BIT_GRADUATE_ADMISSION_BROCHURE_FORCE_START =====
+try {
+  const bitGrad = parseBitGraduateAdmissionBrochurePdf(String(raw_text || ""), {
+    kind: String(kind || ""),
+    filename: String(out?.filename || file?.name || filenameForm || ""),
+    sourceUrl: String(source_url || source_url_raw || ""),
+  });
+
+  if (
+    (String(kind) === "master" || String(kind) === "phd") &&
+    bitGrad.ok &&
+    Array.isArray(bitGrad.rows) &&
+    bitGrad.rows.length > 0
+  ) {
+    nextCatalog.splice(0, nextCatalog.length, ...bitGrad.rows);
+
+    (parsed as any).program_catalog = bitGrad.rows;
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      ...bitGrad.meta,
+      source: "bit_graduate_admission_brochure_pdf",
+      force_structured_parser: true,
+    };
+
+    console.log("[BIT_GRADUATE_ADMISSION_BROCHURE_FORCE]", {
+      kind,
+      rows: bitGrad.rows.length,
+      parser: bitGrad.meta?.parser,
+      profile: bitGrad.meta?.profile,
+      first: bitGrad.rows[0] || null,
+    });
+  }
+} catch (e) {
+  console.error("[BIT_GRADUATE_ADMISSION_BROCHURE_FORCE_ERR]", e);
+}
+// ===== BIT_GRADUATE_ADMISSION_BROCHURE_FORCE_END =====
+
+// ===== GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_START =====
+try {
+  const brochureRawText = String(raw_text || "");
+  const brochureFilename = String(out?.filename || file?.name || filenameForm || "");
+  const brochureSourceUrl = String(source_url || source_url_raw || "");
+
+  const looksLikeUgBrochure =
+    String(kind) === "ug" &&
+    /本科生|undergraduate/i.test(brochureRawText) &&
+    /招生简章|ADMISSION\s+BOOK|admission/i.test(brochureRawText) &&
+    (
+      /Program\s+List|CSCA\s+Required\s+subjects|English\s+taught\s+programs/i.test(brochureRawText) ||
+      /中文授课学费|英文授课学费|Chinese taught program tuition|English taught program tuition/i.test(brochureRawText)
+    );
+
+  const parsedBrochure = parseGenericAdmissionBrochureUndergradPdf(brochureRawText, {
+    kind: String(kind || ""),
+    filename: brochureFilename,
+    sourceUrl: brochureSourceUrl,
+  });
+
+  let brochureRows: any[] =
+    parsedBrochure.ok && Array.isArray(parsedBrochure.rows)
+      ? parsedBrochure.rows
+      : [];
+
+  let brochureMeta: any = parsedBrochure.meta || {};
+
+  // Generic fallback:
+  // 用于北理工这类“招生简章 PDF”，专业藏在 English taught programs / Program List 表里，
+  // 普通 generic_program_catalog_v1 会把学校简介、奖学金误当专业。
+  if (looksLikeUgBrochure && brochureRows.length === 0) {
+    const normLine = (x: any) =>
+      String(x || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\t/g, " ")
+        .replace(/[ ]+/g, " ")
+        .trim();
+
+    const lines = brochureRawText
+      .replace(/\f/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .map(normLine)
+      .filter(Boolean);
+
+    const moneyOf = (re: RegExp) => {
+      const m = brochureRawText.match(re);
+      if (!m) return null;
+      const n = Number(String(m[1] || "").replace(/,/g, ""));
+      return Number.isFinite(n) && n >= 10000 && n <= 300000 ? n : null;
+    };
+
+    const zhTuition =
+      moneyOf(/中文授课学费[:：]?\s*([0-9,]+)\s*元\s*\/?\s*年/i) ||
+      moneyOf(/Chinese\s+taught\s+program\s+tuition[:：]?\s*CNY\s*([0-9,]+)\s*\/?\s*year/i);
+
+    const enTuition =
+      moneyOf(/英文授课学费[:：]?\s*([0-9,]+)\s*元\s*\/?\s*年/i) ||
+      moneyOf(/English\s+taught\s+program\s+tuition[:：]?\s*CNY\s*([0-9,]+)\s*\/?\s*year/i);
+
+    const durationMatch =
+      brochureRawText.match(/学习期限[:：]?\s*([0-9.]+)\s*年/) ||
+      brochureRawText.match(/Duration[:：]?\s*([0-9.]+)\s*years?/i);
+
+    const durationYears = durationMatch ? Number(durationMatch[1]) : 4;
+
+    const badProgram = (x: string) => {
+      const s = normLine(x);
+      if (!s) return true;
+      if (s.length < 3 || s.length > 90) return true;
+      if (/^(Program|Program List|CSCA|Required subjects|Mathematics|Physics|Mathematics\+Physics|Qualification|Duration|Fees|Scholarship|Accommodation|Application|Procedure)$/i.test(s)) return true;
+      if (/campus|tuition|fee|year|month|deadline|contact|website|email|address|passport|diploma|transcript/i.test(s)) return true;
+      if (/简介|奖学金|申请|材料|流程|费用|住宿|联系方式|报名|学校|排名|教育部|校区简介/.test(s)) return true;
+      if (/^[0-9\s.,:：;；/()-]+$/.test(s)) return true;
+      return false;
+    };
+
+    const cleanProgram = (x: string) =>
+      normLine(x)
+        .replace(/^[-•·]+/, "")
+        .replace(/\s+(Mathematics|Physics|Mathematics\+Physics)$/i, "")
+        .trim();
+
+    const rows: any[] = [];
+    const seen = new Set<string>();
+
+    const pushProgram = (name: string, campusText: string | null, lang: "en" | "zh", tuition: number | null) => {
+      const program = cleanProgram(name);
+      if (badProgram(program)) return;
+
+      const key = `${lang}@@${campusText || ""}@@${program}`.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      rows.push({
+        idx: rows.length + 1,
+        kind: "ug",
+        degree_type: "本科",
+        degree_kind: "学士",
+        program_name_cn: null,
+        program_name_en: /[A-Za-z]/.test(program) ? program : null,
+        language_text: lang === "en" ? "英文" : "中文",
+        study_language: lang,
+        campus_text: campusText,
+        duration_years: Number.isFinite(durationYears) && durationYears >= 1 && durationYears <= 8 ? durationYears : 4,
+        tuition_rmb_per_year: tuition,
+        tuition_is_per_year: tuition != null ? true : null,
+        tuition_note: tuition != null ? `${tuition.toLocaleString("en-US")} RMB/Year` : null,
+        raw_line: program,
+        raw_block: program,
+        source_files: [brochureFilename].filter(Boolean),
+        source_url: brochureSourceUrl || null,
+        tags: ["本科", lang === "en" ? "英文" : "中文", "招生简章专业表"],
+      });
+    };
+
+    let inEnglishProgramSection = false;
+    let campusText: string | null = null;
+
+    for (const rawLine of lines) {
+      const line = normLine(rawLine);
+
+      if (/English\s+taught\s+programs/i.test(line)) {
+        inEnglishProgramSection = true;
+        campusText = null;
+        continue;
+      }
+
+      if (inEnglishProgramSection && /^(Qualification|Application Materials|Application Procedure|Duration\s*&\s*Fees|Duration|Fees)$/i.test(line)) {
+        inEnglishProgramSection = false;
+        campusText = null;
+        continue;
+      }
+
+      if (!inEnglishProgramSection) continue;
+
+      if (/Beijing\s+campus/i.test(line)) {
+        campusText = "北京校区";
+        continue;
+      }
+
+      if (/Zhuhai\s+campus/i.test(line)) {
+        campusText = "珠海校区";
+        continue;
+      }
+
+      if (/Program\s+List|Program\s+CSCA|CSCA\s+Required/i.test(line)) continue;
+
+      // 一行里可能是 “International Economics and Trade Mathematics”
+      // 后半 Mathematics 是考试科目，不是专业名。
+      pushProgram(line, campusText, "en", enTuition);
+    }
+
+    if (rows.length > 0) {
+      brochureRows = rows.map((r, i) => ({ ...r, idx: i + 1 }));
+      brochureMeta = {
+        parser: "generic_admission_brochure_undergrad_pdf_fallback_v1",
+        doc_type: "generic_admission_brochure_undergrad_pdf",
+        profile: "program_list_section_fallback",
+        rows: brochureRows.length,
+        filename: brochureFilename,
+        source_url: brochureSourceUrl || null,
+        tuition_zh_rmb_per_year: zhTuition,
+        tuition_en_rmb_per_year: enTuition,
+      };
+    }
+
+    console.log("[GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FALLBACK]", {
+      looksLikeUgBrochure,
+      rows: rows.length,
+      zhTuition,
+      enTuition,
+      durationYears,
+      first: rows[0] || null,
+    });
+  }
+
+  const countBadBrochureRows = (rows: any[]) =>
+    rows.filter((r: any) => {
+      const name = String(r?.program_name_cn || r?.program_name_en || "");
+      const dur = Number(r?.duration_years);
+      return (
+        /简介|奖学金|学生活动|首页|排名|联系方式|申请|材料|流程|费用|undergraduate\s*·/i.test(name) ||
+        (Number.isFinite(dur) && dur > 8)
+      );
+    }).length;
+
+  const shouldReplaceBadBrochureRows =
+    looksLikeUgBrochure &&
+    Array.isArray(brochureRows) &&
+    brochureRows.length > 0 &&
+    countBadBrochureRows(brochureRows) >= Math.max(2, Math.ceil(brochureRows.length * 0.4));
+
+  if (shouldReplaceBadBrochureRows) {
+    const normLine = (x: any) =>
+      String(x || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\t/g, " ")
+        .replace(/[ ]+/g, " ")
+        .trim();
+
+    const lines = brochureRawText
+      .replace(/\f/g, "\n")
+      .replace(/\r/g, "\n")
+      .split("\n")
+      .map(normLine)
+      .filter(Boolean);
+
+    const moneyOf = (re: RegExp) => {
+      const m = brochureRawText.match(re);
+      if (!m) return null;
+      const n = Number(String(m[1] || "").replace(/,/g, ""));
+      return Number.isFinite(n) && n >= 10000 && n <= 300000 ? n : null;
+    };
+
+    const zhTuition =
+      moneyOf(/中文授课学费[:：]?\s*([0-9,]+)\s*元\s*\/?\s*年/i) ||
+      moneyOf(/Chinese\s+taught\s+program\s+tuition[:：]?\s*CNY\s*([0-9,]+)\s*\/?\s*year/i);
+
+    const enTuition =
+      moneyOf(/英文授课学费[:：]?\s*([0-9,]+)\s*元\s*\/?\s*年/i) ||
+      moneyOf(/English\s+taught\s+program\s+tuition[:：]?\s*CNY\s*([0-9,]+)\s*\/?\s*year/i);
+
+    const durationMatch =
+      brochureRawText.match(/学习期限[:：]?\s*([0-9.]+)\s*年/) ||
+      brochureRawText.match(/Duration[:：]?\s*([0-9.]+)\s*years?/i);
+
+    const durationYears = durationMatch ? Number(durationMatch[1]) : 4;
+
+    const normalizeProgramName = (x: string) =>
+      normLine(x)
+        .replace(/^[-•·]+/, "")
+        .replace(/[\u2022·]+/g, "")
+        .replace(/\s+(Mathematics\s*\+\s*Physics|Mathematics|Physics|Chemistry|Biology)$/i, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const isBadProgram = (x: string) => {
+      const v = normalizeProgramName(x);
+      if (!v) return true;
+      if (v.length < 3 || v.length > 90) return true;
+      if (/^(Program|Program List|CSCA|Required subjects|Qualification|Duration|Fees|Scholarship|Accommodation|Application|Procedure)$/i.test(v)) return true;
+      if (/campus|tuition|fee|year|month|deadline|contact|website|email|address|passport|diploma|transcript/i.test(v)) return true;
+      if (/简介|奖学金|申请|材料|流程|费用|住宿|联系方式|报名|学校|排名|教育部|校区简介/.test(v)) return true;
+      if (/^[0-9\s.,:：;；/()+-]+$/.test(v)) return true;
+      return false;
+    };
+
+    const programWhitelist = [
+      "Aeronautical and Astronautical Engineering",
+      "Automation",
+      "Computer Science and Technology",
+      "Mechatronics Engineering",
+      "Electronics Science and Technology",
+      "Mechanical Engineering",
+      "International Economics and Trade",
+      "Artificial Intelligence",
+      "Artiﬁcial Intelligence",
+      "Artifical Intelligence",
+      "Artificial Intelligence",
+    ];
+
+    const rows: any[] = [];
+    const seen = new Set<string>();
+
+    const pushProgram = (name: string, campusText: string | null, tuition: number | null) => {
+      let program = normalizeProgramName(name)
+        .replace(/Artiﬁcial/g, "Artificial")
+        .replace(/Artifical/g, "Artificial");
+
+      if (program === "International Economics and Trade Mathematics") {
+        program = "International Economics and Trade";
+      }
+
+      if (isBadProgram(program)) return;
+
+      const key = `${campusText || ""}@@${program}`.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      rows.push({
+        idx: rows.length + 1,
+        kind: "ug",
+        degree_type: "本科",
+        degree_kind: "学士",
+        program_name_cn: null,
+        program_name_en: program,
+        language_text: "英文",
+        study_language: "en",
+        campus_text: campusText,
+        duration_years: Number.isFinite(durationYears) && durationYears >= 1 && durationYears <= 8 ? durationYears : 4,
+        tuition_rmb_per_year: tuition,
+        tuition_is_per_year: tuition != null ? true : null,
+        tuition_note: tuition != null ? `${tuition.toLocaleString("en-US")} RMB/Year` : null,
+        raw_line: program,
+        raw_block: program,
+        source_files: [brochureFilename].filter(Boolean),
+        source_url: brochureSourceUrl || null,
+        tags: ["本科", "英文", "招生简章专业表", "坏行替换"],
+      });
+    };
+
+    let campusText: string | null = null;
+    const joined = lines.join("\n");
+
+    // 优先白名单命中：适合 PDF 抽行错乱、专业和考试科目粘连的情况。
+    for (const name of programWhitelist) {
+      const canonical = name.replace(/Artiﬁcial/g, "Artificial");
+      const re = new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace("ﬁ", "[ﬁfi]+"), "i");
+      if (!re.test(joined)) continue;
+
+      const pos = joined.search(re);
+      const before = joined.slice(Math.max(0, pos - 500), pos);
+      const campus =
+        /Zhuhai\s+campus/i.test(before) && !/Beijing\s+campus/i.test(before.slice(before.lastIndexOf("Zhuhai campus") + 1))
+          ? "珠海校区"
+          : /Zhuhai\s+campus/i.test(before) && before.lastIndexOf("Zhuhai campus") > before.lastIndexOf("Beijing campus")
+            ? "珠海校区"
+            : "北京校区";
+
+      pushProgram(canonical, campus, enTuition);
+    }
+
+    // 再走通用 section 扫描，兼容其他学校类似 Program List。
+    let inProgramSection = false;
+
+    for (const rawLine of lines) {
+      const line = normLine(rawLine);
+
+      if (/English\s+taught\s+programs|Program\s+List|CSCA\s+Required\s+subjects/i.test(line)) {
+        inProgramSection = true;
+        continue;
+      }
+
+      if (inProgramSection && /^(Qualification|Application Materials|Application Procedure|Duration\s*&\s*Fees|Duration|Fees)$/i.test(line)) {
+        inProgramSection = false;
+        campusText = null;
+        continue;
+      }
+
+      if (!inProgramSection) continue;
+
+      if (/Beijing\s+campus/i.test(line)) {
+        campusText = "北京校区";
+        continue;
+      }
+
+      if (/Zhuhai\s+campus/i.test(line)) {
+        campusText = "珠海校区";
+        continue;
+      }
+
+      if (/Program\s+List|Program\s+CSCA|CSCA\s+Required/i.test(line)) continue;
+
+      pushProgram(line, campusText, enTuition);
+    }
+
+    if (rows.length > 0) {
+      brochureRows = rows.map((r, i) => ({ ...r, idx: i + 1 }));
+      brochureMeta = {
+        parser: "generic_admission_brochure_undergrad_pdf_fallback_v2",
+        doc_type: "generic_admission_brochure_undergrad_pdf",
+        profile: "program_list_section_bad_rows_replaced",
+        rows: brochureRows.length,
+        filename: brochureFilename,
+        source_url: brochureSourceUrl || null,
+        tuition_zh_rmb_per_year: zhTuition,
+        tuition_en_rmb_per_year: enTuition,
+        replaced_bad_rows: true,
+      };
+    }
+
+    console.log("[GENERIC_ADMISSION_BROCHURE_UNDERGRAD_BAD_ROWS_REPLACED]", {
+      beforeRows: Array.isArray(brochureRows) ? brochureRows.length : -1,
+      badRows: countBadBrochureRows(brochureRows),
+      newRows: rows.length,
+      zhTuition,
+      enTuition,
+      durationYears,
+      first: rows[0] || null,
+    });
+  }
+
+  if (
+    String(kind) === "ug" &&
+    looksLikeUgBrochure &&
+    Array.isArray(brochureRows) &&
+    brochureRows.length > 0
+  ) {
+    nextCatalog.splice(0, nextCatalog.length, ...brochureRows);
+
+    (parsed as any).program_catalog = brochureRows;
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      ...brochureMeta,
+      source: "generic_admission_brochure_undergrad_pdf",
+    };
+
+    console.log("[GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE]", {
+      kind,
+      rows: brochureRows.length,
+      parser: brochureMeta?.parser,
+      profile: brochureMeta?.profile,
+      first: brochureRows[0] || null,
+    });
+  } else {
+    console.log("[GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_SKIP]", {
+      kind,
+      looksLikeUgBrochure,
+      parsedOk: parsedBrochure.ok,
+      parsedRows: Array.isArray(parsedBrochure.rows) ? parsedBrochure.rows.length : -1,
+      fallbackRows: brochureRows.length,
+      filename: brochureFilename,
+    });
+  }
+} catch (e) {
+  console.error("[GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_ERR]", e);
+}
+// ===== GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_END =====
+
+
 // ===== GENERIC_PROGRAM_CATALOG_FORCE_START =====
 try {
   const genericCatalogSignal = [
@@ -4424,10 +4889,21 @@ try {
       genericCatalogSignal.includes("专业")
     );
 
+
+  const looksLikeUndergradAdmissionBrochureBeforeGeneric =
+    String(kind) === "ug" &&
+    /本科生|undergraduate/i.test(String(raw_text || "")) &&
+    /招生简章|ADMISSION\s+BOOK|admission/i.test(String(raw_text || "")) &&
+    (
+      /Program\s+List|CSCA\s+Required\s+subjects|English\s+taught\s+programs/i.test(String(raw_text || "")) ||
+      /中文授课学费|英文授课学费|Chinese taught program tuition|English taught program tuition/i.test(String(raw_text || ""))
+    );
+
   const shouldUseGenericCatalog =
     Array.isArray(nextCatalog) &&
     nextCatalog.length === 0 &&
     looksLikeProgramCatalog &&
+    !looksLikeUndergradAdmissionBrochureBeforeGeneric &&
     !parserNowBeforeGeneric.includes("whu_") &&
     !parserNowBeforeGeneric.includes("ustc_") &&
     !parserNowBeforeGeneric.includes("nju_") &&
@@ -4685,6 +5161,9 @@ try {
 } catch (e) {
   console.error("[TUITION_POLICY_ONLY_FORCE_EMPTY_NEXT_CATALOG_LATE] failed:", e);
 }
+
+
+
 
 console.log("[UPLOAD_NEXT_CATALOG_DEBUG]", {
   kind,
@@ -10936,6 +11415,8 @@ try {
 }
 // ===== XJTU_GRAD_MASTER_FACULTY_REPAIR_END =====
 
+
+
 console.log("[UPLOAD_FINAL_CATALOG_DEBUG]", {
   kind,
   linkPurpose,
@@ -13093,7 +13574,74 @@ const mergedParsed =
       console.error("[FINAL_TUITION_BACKFILL] failed:", e);
     }
 
-    const upsertResp = await supabase
+    
+// ===== GENERIC_ADMISSION_BROCHURE_FORCE_UPSERT_START =====
+try {
+  const brochureParserForUpsert = String(
+    (parsed as any)?.program_catalog_meta?.parser ||
+    (program_catalog_meta as any)?.parser ||
+    ""
+  );
+
+  const shouldForceBrochureUpsert =
+    String(kind) === "ug" &&
+    brochureParserForUpsert.startsWith("generic_admission_brochure_undergrad_pdf") &&
+    Array.isArray(nextCatalog) &&
+    nextCatalog.length > 0;
+
+  if (shouldForceBrochureUpsert) {
+    const forcedRows = nextCatalog.map((r: any, i: number) => ({
+      ...(r || {}),
+      idx: i + 1,
+    }));
+
+    if (typeof mergedCatalog !== "undefined") {
+      mergedCatalog = forcedRows;
+    }
+
+    if (typeof mergedCatalogFinal !== "undefined") {
+      mergedCatalogFinal = forcedRows;
+    }
+
+    (parsed as any).program_catalog = forcedRows;
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      parser: brochureParserForUpsert,
+      doc_type: "generic_admission_brochure_undergrad_pdf",
+      profile:
+        (parsed as any)?.program_catalog_meta?.profile ||
+        "program_list_section_fallback",
+      source: "generic_admission_brochure_undergrad_pdf",
+      forced_upsert_from_next_catalog: true,
+      rows: forcedRows.length,
+    };
+
+    if (typeof mergedParsed !== "undefined" && mergedParsed) {
+      (mergedParsed as any).program_catalog = forcedRows;
+      (mergedParsed as any).program_catalog_meta = {
+        ...((mergedParsed as any).program_catalog_meta || {}),
+        ...(parsed as any).program_catalog_meta,
+        forced_upsert_from_next_catalog: true,
+        rows: forcedRows.length,
+      };
+    }
+
+    console.log("[GENERIC_ADMISSION_BROCHURE_FORCE_UPSERT]", {
+      kind,
+      parser: brochureParserForUpsert,
+      nextRows: nextCatalog.length,
+      forcedRows: forcedRows.length,
+      prevRows: Array.isArray(prevCatalog) ? prevCatalog.length : -1,
+      first: forcedRows[0] || null,
+    });
+  }
+} catch (e) {
+  console.error("[GENERIC_ADMISSION_BROCHURE_FORCE_UPSERT_ERR]", e);
+}
+// ===== GENERIC_ADMISSION_BROCHURE_FORCE_UPSERT_END =====
+
+
+const upsertResp = await supabase
       .from("school_files")
       .upsert(
         [
