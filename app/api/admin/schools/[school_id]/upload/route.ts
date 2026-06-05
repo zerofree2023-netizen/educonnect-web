@@ -4546,6 +4546,122 @@ try {
 }
 // ===== DEBUG_DUMP_XJTU_GRAD_RAW_TEXT_END =====
 
+// ===== SYSU_FOUNDATION_HTML_FORCE_START =====
+try {
+  const sysuFoundationRaw = String(raw_text || "");
+  const sysuFoundationUrl = String(source_url || source_url_raw || "");
+  const isSysuFoundationHtml =
+    String(kind) === "foundation_bachelor" &&
+    (
+      sysuFoundationUrl.includes("/cn/fxlxm/1421639") ||
+      sysuFoundationUrl.includes("1421639.htm") ||
+      (
+        sysuFoundationRaw.includes("中山大学2026年国际学生预科项目招生简章") &&
+        sysuFoundationRaw.includes("30,400元/学年") &&
+        sysuFoundationRaw.includes("15,200元/学期")
+      )
+    );
+
+  if (isSysuFoundationHtml) {
+    const cleanText = (v: any) =>
+      String(v || "")
+        .replace(/\u00a0/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const sourceUrl = sysuFoundationUrl || "https://iso.sysu.edu.cn/cn/fxlxm/1421639.htm";
+
+    const row: any = {
+      idx: 1,
+      kind: "foundation_bachelor",
+      program_category: "foundation_bachelor",
+      education_level: "foundation_bachelor",
+
+      faculty_code: null,
+      faculty_cn: "国际翻译学院",
+      faculty_en: null,
+
+      major_code: null,
+      program_name_cn: "中山大学国际学生预科项目",
+      program_name_en: "SYSU International Foundation Program",
+
+      track_code: null,
+      track_name_cn: null,
+      track_name_en: null,
+
+      degree_type: "非学历",
+      degree_kind: "非学历",
+      degree_name_cn: "预科项目",
+      degree_name_en: "Foundation Program",
+
+      study_language: "zh",
+      language_text: "中文",
+
+      campus_text: "珠海校区",
+      duration_years: 1,
+      study_mode: "全日制",
+
+      tuition_rmb_per_year: 30400,
+      tuition_rmb_per_semester: 15200,
+      tuition_total_rmb: null,
+      tuition_is_per_year: true,
+      tuition_note: "学费：30,400元/学年；15,200元/学期。学费+住宿费：35,000元/学年；17,500元/学期。",
+
+      accommodation_fee_rmb_per_year: 4600,
+      accommodation_fee_note: "学费+住宿费为35,000元/学年，含双人间1位学生住宿费；住宿统一安排入住中山大学珠海校区荔园6号国际学生公寓。",
+
+      application_time_text: "2026年申请，具体以官网页面为准",
+      application_portal_text: "http://apply.sysu.edu.cn",
+
+      apply_requirements_text: "非中国籍公民，持有效外国护照；具备高中毕业及以上学历证明，或同等学历证明；身心健康，品行端正。2026年9月1日前不满18周岁者需提交监护人保证书及公证件。",
+      application_materials_text: "有效普通护照及个人照片；高中毕业及以上学历证明或同等学历证明；高中及以上学历或同等学历阶段完整课程成绩单；语言水平证明；学习计划；无犯罪记录证明；辅助证明材料。",
+      language_requirements_text: "申请一学期制需提供HSK4级证书；预科项目包含HSK考试辅导、CSCA测试辅导等。",
+      application_process_text: "在线申请；上传签名材料；资格审查；预录取；录取与报到。",
+      admission_process_text: "入学时间为2026年9月，具体以录取通知书为准。",
+
+      contact_phone: "+86 756 3668351; +86 756 3668001",
+      contact_email: "sysuyk@mail.sysu.edu.cn",
+      contact_raw: "电话：+86 756 3668351；+86 756 3668001；邮箱：sysuyk@mail.sysu.edu.cn；地址：广东省珠海市香洲区唐家湾大学路2号中山大学珠海校区海琴6号国际翻译学院。",
+
+      source_url: sourceUrl,
+      source_files: ["1421639.htm"],
+      tags: ["预科", "非学历", "中文", "中山大学", "收费已填"],
+
+      raw_line: "中山大学2026年国际学生预科项目招生简章",
+      raw_block: cleanText(sysuFoundationRaw).slice(0, 6000),
+
+      needs_review: false,
+      review_flags: [],
+    };
+
+    nextCatalog.splice(0, nextCatalog.length, row);
+
+    (parsed as any).program_catalog = [row];
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      parser: "sysu_foundation_html_v1",
+      doc_type: "sysu_foundation_html",
+      kind: "foundation_bachelor",
+      education_level: "foundation_bachelor",
+      rows: 1,
+      source_url: sourceUrl,
+      sysu_foundation_parse_status: "complete",
+      sysu_foundation_with_tuition: 1,
+    };
+
+    console.log("[SYSU_FOUNDATION_HTML_FORCE]", {
+      kind,
+      sourceUrl,
+      rows: nextCatalog.length,
+      first: nextCatalog[0] || null,
+    });
+  }
+} catch (e) {
+  console.error("[SYSU_FOUNDATION_HTML_FORCE_ERR]", e);
+}
+// ===== SYSU_FOUNDATION_HTML_FORCE_END =====
+
+
 
 
 
