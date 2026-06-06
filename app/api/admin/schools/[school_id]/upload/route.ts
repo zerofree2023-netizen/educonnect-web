@@ -54,6 +54,7 @@ import {
 } from "@/lib/server/ingest/profiles/xjtu";
 import { parseGenericAdmissionBrochureUndergradPdf } from "@/lib/server/parsers/genericAdmissionBrochureUndergradPdf";
 import { parseBitGraduateAdmissionBrochurePdf } from "@/lib/server/parsers/bitGraduateAdmissionBrochurePdf";
+import { parseBitLanguageProgramBrochurePdf } from "@/lib/server/parsers/bitLanguageProgramBrochurePdf";
 
 
 
@@ -4436,6 +4437,31 @@ try {
   console.error("[BIT_GRADUATE_ADMISSION_BROCHURE_FORCE_ERR]", e);
 }
 // ===== BIT_GRADUATE_ADMISSION_BROCHURE_FORCE_END =====
+
+
+// ===== BIT_LANGUAGE_PROGRAM_FORCE_START =====
+try {
+  const bitLanguageParsed = parseBitLanguageProgramBrochurePdf(rawText || text || "", {
+    filename: String(filename || realName || filenameGuess || ""),
+    sourceUrl: String(sourceUrl || ""),
+  });
+  if (bitLanguageParsed?.ok && Array.isArray(bitLanguageParsed.rows) && bitLanguageParsed.rows.length > 0) {
+    Object.assign(parsed as any, {
+      program_catalog: bitLanguageParsed.rows,
+      program_catalog_meta: bitLanguageParsed.meta,
+    });
+    if (process.env.DEBUG_INGEST === "1") {
+      console.log("[BIT_LANGUAGE_PROGRAM_FORCE]", {
+        rows: bitLanguageParsed.rows.length,
+        parser: bitLanguageParsed.meta?.parser,
+        profile: bitLanguageParsed.meta?.profile,
+      });
+    }
+  }
+} catch (e) {
+  console.error("[BIT_LANGUAGE_PROGRAM_FORCE_ERR]", e);
+}
+// ===== BIT_LANGUAGE_PROGRAM_FORCE_END =====
 
 // ===== GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_START =====
 try {
