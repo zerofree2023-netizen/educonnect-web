@@ -4441,9 +4441,9 @@ try {
 
 // ===== BIT_LANGUAGE_PROGRAM_FORCE_START =====
 try {
-  const bitLanguageParsed = parseBitLanguageProgramBrochurePdf(rawText || text || "", {
-    filename: String(filename || realName || filenameGuess || ""),
-    sourceUrl: String(sourceUrl || ""),
+  const bitLanguageParsed = parseBitLanguageProgramBrochurePdf(raw_text || "", {
+    filename: String((out as any)?.filename || (out as any)?.name || ""),
+    sourceUrl: String(source_url || ""),
   });
   if (bitLanguageParsed?.ok && Array.isArray(bitLanguageParsed.rows) && bitLanguageParsed.rows.length > 0) {
     Object.assign(parsed as any, {
