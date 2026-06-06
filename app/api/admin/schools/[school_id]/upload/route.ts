@@ -2297,6 +2297,39 @@ export async function POST(
         ).trim();
 
         if (
+          String(kind || "").toLowerCase() === "chinese_language" &&
+          /PDF_TEXT_EMPTY|pdftotext empty output/i.test(fileExtractMsg) &&
+          /北理工|北京理工大学|BIT|语言|汉语|Chinese/i.test(nameForImageFallback)
+        ) {
+          const bitLang = parseBitLanguageProgramBrochurePdf("", {
+            filename: nameForImageFallback || "北京理工大学语言生项目.pdf",
+            sourceUrl: null,
+            imageFallback: true,
+          } as any);
+
+          if (!bitLang?.ok || !Array.isArray(bitLang.rows) || bitLang.rows.length === 0) {
+            throw fileExtractErr;
+          }
+
+          console.log("[BIT_LANGUAGE_IMAGE_PDF_FALLBACK]", {
+            filename: nameForImageFallback,
+            rows: bitLang.rows.length,
+            first: bitLang.rows[0] || null,
+          });
+
+          out = {
+            filename: nameForImageFallback || "北京理工大学语言生项目.pdf",
+            raw_text: JSON.stringify({
+              __image_pdf_fallback_parser: "bit_language_program_brochure_pdf_v1",
+              program_catalog: bitLang.rows,
+              program_catalog_meta: bitLang.meta,
+            }),
+            excelParsed: null,
+            excelBuf: null,
+            content_type: "application/json",
+            source_url: null,
+          };
+        } else if (
           String(kind || "").toLowerCase() === "ug" &&
           /PDF_TEXT_EMPTY|pdftotext empty output/i.test(fileExtractMsg) &&
           /中科大|中国科学技术大学|ustc/i.test(nameForImageFallback) &&
