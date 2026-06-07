@@ -27,7 +27,7 @@ function getProgramKindLabel(row: any, fallback?: string) {
 
   if (raw === "ug" || raw === "undergraduate") return "本科";
   if (raw === "master") return "硕士";
-  if (raw === "phd" || raw === "doctor" || raw === "doctoral") return "博士";
+  if (raw === "phd" | "exchange" || raw === "doctor" || raw === "doctoral") return "博士";
   if (raw === "guide") return "申请指南";
   if (raw === "other") return "其他";
   return raw || "其他";
@@ -1676,6 +1676,7 @@ form.append("filename", file?.name || filename || "manual.txt");
             <option value="ug">本科</option>
             <option value="master">硕士</option>
             <option value="phd">博士</option>
+              <option value="exchange">交换生</option>
 <option value="foundation_bachelor">预科/预本连读</option>
 <option value="chinese_language">汉语进修</option>
             <option value="apply_guide">申请指南</option>
