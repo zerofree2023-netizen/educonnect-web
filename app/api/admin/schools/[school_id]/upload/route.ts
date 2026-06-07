@@ -55,6 +55,7 @@ import {
 import { parseGenericAdmissionBrochureUndergradPdf } from "@/lib/server/parsers/genericAdmissionBrochureUndergradPdf";
 import { parseBitGraduateAdmissionBrochurePdf } from "@/lib/server/parsers/bitGraduateAdmissionBrochurePdf";
 import { parseBitLanguageProgramBrochurePdf } from "@/lib/server/parsers/bitLanguageProgramBrochurePdf";
+import { parseBitExchangeProgramBrochurePdf } from "@/lib/server/parsers/bitExchangeProgramBrochurePdf";
 
 
 
@@ -2330,6 +2331,34 @@ export async function POST(
             source_url: null,
           };
         } else if (
+          String(kind || "").toLowerCase() === "exchange" &&
+          /PDF_TEXT_EMPTY|pdftotext empty output/i.test(fileExtractMsg) &&
+          /北理工|北京理工|BIT|Beijing Institute of Technology|交换生|exchange/i.test(nameForImageFallback)
+        ) {
+          const bitExchange = parseBitExchangeProgramBrochurePdf("", {
+            filename: nameForImageFallback || "北理工交换生.pdf",
+            sourceUrl: "",
+          });
+
+          console.log("[BIT_EXCHANGE_IMAGE_PDF_FALLBACK]", {
+            filename: nameForImageFallback,
+            rows: bitExchange.rows.length,
+            first: bitExchange.rows[0] || null,
+          });
+
+          out = {
+            filename: nameForImageFallback || "北理工交换生.pdf",
+            raw_text: JSON.stringify({
+              __image_pdf_fallback_parser: "bit_exchange_program_brochure_pdf_v1",
+              program_catalog: bitExchange.rows,
+              program_catalog_meta: bitExchange.meta,
+            }),
+            excelParsed: null,
+            excelBuf: null,
+            content_type: "application/json",
+            source_url: null,
+          };
+        } else if (
           String(kind || "").toLowerCase() === "ug" &&
           /PDF_TEXT_EMPTY|pdftotext empty output/i.test(fileExtractMsg) &&
           /中科大|中国科学技术大学|ustc/i.test(nameForImageFallback) &&
@@ -4495,6 +4524,47 @@ try {
   console.error("[BIT_LANGUAGE_PROGRAM_FORCE_ERR]", e);
 }
 // ===== BIT_LANGUAGE_PROGRAM_FORCE_END =====
+
+
+// ===== BIT_EXCHANGE_PROGRAM_FORCE_START =====
+try {
+  if (String(kind || "").toLowerCase() === "exchange") {
+    const bitExchangeParsed = parseBitExchangeProgramBrochurePdf(raw_text || "", {
+      filename: String(out?.filename || filenameForm || ""),
+      sourceUrl: String(source_url || ""),
+    });
+
+    if (bitExchangeParsed?.ok && Array.isArray(bitExchangeParsed.rows) && bitExchangeParsed.rows.length > 0) {
+      Object.assign(parsed as any, {
+        program_catalog: bitExchangeParsed.rows,
+        program_catalog_meta: {
+          ...(bitExchangeParsed.meta || {}),
+          parser: bitExchangeParsed.meta?.parser || "bit_exchange_program_brochure_pdf_v1",
+          profile: bitExchangeParsed.meta?.profile || "bit_exchange_programs",
+          force_structured_parser: true,
+        },
+      });
+
+      if (process.env.DEBUG_INGEST === "1") {
+        console.log("[BIT_EXCHANGE_PROGRAM_FORCE]", {
+          rows: bitExchangeParsed.rows.length,
+          parser: bitExchangeParsed.meta?.parser,
+          profile: bitExchangeParsed.meta?.profile,
+          first: bitExchangeParsed.rows[0] || null,
+        });
+      }
+    } else {
+      console.warn("[BIT_EXCHANGE_PROGRAM_FORCE_EMPTY]", {
+        filename: String(out?.filename || filenameForm || ""),
+        rawLen: String(raw_text || "").length,
+      });
+    }
+  }
+} catch (e) {
+  console.error("[BIT_EXCHANGE_PROGRAM_FORCE_ERR]", e);
+}
+// ===== BIT_EXCHANGE_PROGRAM_FORCE_END =====
+
 
 // ===== GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_START =====
 try {
