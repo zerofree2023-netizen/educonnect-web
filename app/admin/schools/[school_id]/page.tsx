@@ -27,7 +27,8 @@ function getProgramKindLabel(row: any, fallback?: string) {
 
   if (raw === "ug" || raw === "undergraduate") return "本科";
   if (raw === "master") return "硕士";
-  if (raw === "phd" | "exchange" || raw === "doctor" || raw === "doctoral") return "博士";
+  if (raw === "phd" || raw === "doctor" || raw === "doctoral") return "博士";
+  if (raw === "exchange") return "交换生";
   if (raw === "guide") return "申请指南";
   if (raw === "other") return "其他";
   return raw || "其他";
