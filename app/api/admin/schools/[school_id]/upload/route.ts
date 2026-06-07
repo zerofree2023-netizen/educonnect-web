@@ -3654,6 +3654,59 @@ const tuitionRows = (tuitionParsed as any)?.ok
       : null,
 });
 
+// ===== BIT_EXCHANGE_PROGRAM_FORCE_START =====
+try {
+  if (String(kind || "").toLowerCase() === "exchange") {
+    const exchangeFilename = String(out?.filename || filenameForm || "");
+    const exchangeSeedText =
+      String(raw_text || "").trim().length > 20
+        ? String(raw_text || "")
+        : `北京理工大学 交换生 Exchange Program 2026 ${exchangeFilename}`;
+
+    const bitExchangeParsed = parseBitExchangeProgramBrochurePdf(exchangeSeedText, {
+      filename: exchangeFilename,
+      sourceUrl: String(source_url || ""),
+    });
+
+    if (bitExchangeParsed?.ok && Array.isArray(bitExchangeParsed.rows) && bitExchangeParsed.rows.length > 0) {
+      Object.assign(parsed as any, {
+        program_catalog: bitExchangeParsed.rows,
+        program_catalog_meta: {
+          ...(bitExchangeParsed.meta || {}),
+          parser: bitExchangeParsed.meta?.parser || "bit_exchange_program_brochure_pdf_v1",
+          profile: bitExchangeParsed.meta?.profile || "bit_exchange_programs",
+          force_structured_parser: true,
+        },
+      });
+
+      if (process.env.DEBUG_INGEST === "1") {
+        console.log("[BIT_EXCHANGE_PROGRAM_FORCE]", {
+          rows: bitExchangeParsed.rows.length,
+          parser: bitExchangeParsed.meta?.parser,
+          profile: bitExchangeParsed.meta?.profile,
+          first: bitExchangeParsed.rows[0] || null,
+        });
+      } else {
+        console.log("[BIT_EXCHANGE_PROGRAM_FORCE]", {
+          rows: bitExchangeParsed.rows.length,
+          parser: bitExchangeParsed.meta?.parser,
+          profile: bitExchangeParsed.meta?.profile,
+        });
+      }
+    } else {
+      console.warn("[BIT_EXCHANGE_PROGRAM_FORCE_EMPTY]", {
+        filename: exchangeFilename,
+        rawLen: String(raw_text || "").length,
+        rawPreview: String(raw_text || "").slice(0, 80),
+      });
+    }
+  }
+} catch (e) {
+  console.error("[BIT_EXCHANGE_PROGRAM_FORCE_ERR]", e);
+}
+// ===== BIT_EXCHANGE_PROGRAM_FORCE_END =====
+
+
     const norm2 = (s: any) =>
       String(s ?? "")
         .replace(/\u00a0/g, " ")
@@ -4524,54 +4577,6 @@ try {
   console.error("[BIT_LANGUAGE_PROGRAM_FORCE_ERR]", e);
 }
 // ===== BIT_LANGUAGE_PROGRAM_FORCE_END =====
-
-
-// ===== BIT_EXCHANGE_PROGRAM_FORCE_START =====
-try {
-  if (String(kind || "").toLowerCase() === "exchange") {
-    const exchangeFilename = String(out?.filename || filenameForm || "");
-    const exchangeSeedText =
-      String(raw_text || "").trim().length > 20
-        ? String(raw_text || "")
-        : `北京理工大学 交换生 Exchange Program 2026 ${exchangeFilename}`;
-
-    const bitExchangeParsed = parseBitExchangeProgramBrochurePdf(exchangeSeedText, {
-      filename: exchangeFilename,
-      sourceUrl: String(source_url || ""),
-    });
-
-    if (bitExchangeParsed?.ok && Array.isArray(bitExchangeParsed.rows) && bitExchangeParsed.rows.length > 0) {
-      Object.assign(parsed as any, {
-        program_catalog: bitExchangeParsed.rows,
-        program_catalog_meta: {
-          ...(bitExchangeParsed.meta || {}),
-          parser: bitExchangeParsed.meta?.parser || "bit_exchange_program_brochure_pdf_v1",
-          profile: bitExchangeParsed.meta?.profile || "bit_exchange_programs",
-          force_structured_parser: true,
-        },
-      });
-
-      if (process.env.DEBUG_INGEST === "1") {
-        console.log("[BIT_EXCHANGE_PROGRAM_FORCE]", {
-          rows: bitExchangeParsed.rows.length,
-          parser: bitExchangeParsed.meta?.parser,
-          profile: bitExchangeParsed.meta?.profile,
-          first: bitExchangeParsed.rows[0] || null,
-        });
-      }
-    } else {
-      console.warn("[BIT_EXCHANGE_PROGRAM_FORCE_EMPTY]", {
-        filename: String(out?.filename || filenameForm || ""),
-        rawLen: String(raw_text || "").length,
-      });
-    }
-  }
-} catch (e) {
-  console.error("[BIT_EXCHANGE_PROGRAM_FORCE_ERR]", e);
-}
-// ===== BIT_EXCHANGE_PROGRAM_FORCE_END =====
-
-
 // ===== GENERIC_ADMISSION_BROCHURE_UNDERGRAD_FORCE_START =====
 try {
   const brochureRawText = String(raw_text || "");
