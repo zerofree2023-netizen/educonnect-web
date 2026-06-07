@@ -4529,8 +4529,14 @@ try {
 // ===== BIT_EXCHANGE_PROGRAM_FORCE_START =====
 try {
   if (String(kind || "").toLowerCase() === "exchange") {
-    const bitExchangeParsed = parseBitExchangeProgramBrochurePdf(raw_text || "", {
-      filename: String(out?.filename || filenameForm || ""),
+    const exchangeFilename = String(out?.filename || filenameForm || "");
+    const exchangeSeedText =
+      String(raw_text || "").trim().length > 20
+        ? String(raw_text || "")
+        : `北京理工大学 交换生 Exchange Program 2026 ${exchangeFilename}`;
+
+    const bitExchangeParsed = parseBitExchangeProgramBrochurePdf(exchangeSeedText, {
+      filename: exchangeFilename,
       sourceUrl: String(source_url || ""),
     });
 
