@@ -8,11 +8,37 @@ export const maxDuration = 60;
 // ✅ 用这个字段验证：你看到它，就说明当前 API 跑的是这份新代码
 const DEBUG_VERSION = "list_route_v4_chunk_profile_20260303";
 
+async function fetchWithRetry(input: RequestInfo | URL, init?: RequestInit) {
+  const maxAttempts = 3;
+  let lastErr: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await fetch(input, init);
+    } catch (err: any) {
+      lastErr = err;
+      const msg = String(err?.message || err || "");
+      const retryable =
+        /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket|TLS/i.test(msg);
+
+      if (!retryable || attempt === maxAttempts) break;
+
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+    }
+  }
+
+  throw lastErr;
+}
+
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
-  return createClient(url, key, { auth: { persistSession: false } });
+
+  return createClient(url, key, {
+    auth: { persistSession: false },
+    global: { fetch: fetchWithRetry as typeof fetch },
+  });
 }
 
 function clampInt(v: string | null, def: number, min: number, max: number) {
