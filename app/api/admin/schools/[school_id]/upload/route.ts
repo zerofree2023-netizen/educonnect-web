@@ -213,6 +213,190 @@ function parseSeuUndergradCatalogPdf(rawText: string, filename?: string | null) 
 }
 
 
+
+function parseSeuUndergradEnglishCatalogPdf(rawText: string, filename?: string | null) {
+  const raw = String(rawText || "");
+  const file = String(filename || "东南大学本科英文.pdf");
+
+  const compactRaw = raw.replace(/\s+/g, " ");
+
+  const isSeuUgEnglish =
+    /School\/College\/Dept\./i.test(raw) &&
+    /Specialty/i.test(raw) &&
+    /CSCA Test/i.test(raw) &&
+    /Duration/i.test(raw) &&
+    /years/i.test(raw) &&
+    /School of Architecture/i.test(raw) &&
+    /School of Economics/i.test(raw) &&
+    /Medical School/i.test(raw) &&
+    /Architecture/i.test(compactRaw) &&
+    /E-Business/i.test(compactRaw) &&
+    /Clinical Medicine/i.test(compactRaw);
+
+  if (!isSeuUgEnglish) {
+    console.log("[SEU_UG_ENGLISH_CATALOG_DETECT_SKIP]", {
+      filename: file,
+      hasSchoolDept: /School\/College\/Dept\./i.test(raw),
+      hasSpecialty: /Specialty/i.test(raw),
+      hasCsca: /CSCA Test/i.test(raw),
+      hasDuration: /Duration/i.test(raw),
+      hasArchitectureSchool: /School of Architecture/i.test(raw),
+      hasEconomicsSchool: /School of Economics/i.test(raw),
+      hasTransportationSchool: /School of Transportation/i.test(raw) || /School of\s+Transportation/i.test(raw),
+      hasMedicalSchool: /Medical School/i.test(raw),
+      rawPreview: raw.slice(0, 500),
+    });
+    return null;
+  }
+
+  const rows: any[] = [
+    ["建筑学院", "School of Architecture", "建筑学", "Architecture", "Humanities/Science Chinese + Mathematics", 5],
+    ["建筑学院", "School of Architecture", "建筑学（英文授课）", "Architecture (English-taught)", "Mathematics", 5],
+    ["建筑学院", "School of Architecture", "城乡规划", "Urban Planning", "Humanities/Science Chinese + Mathematics", 4],
+    ["建筑学院", "School of Architecture", "风景园林", "Landscape Architecture", "Humanities/Science Chinese + Mathematics", 4],
+
+    ["机械工程学院", "School of Mechanical Engineering", "机械工程", "Mechanical Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["能源与环境学院", "School of Energy & Environment", "能源与动力工程", "Energy and Power Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["能源与环境学院", "School of Energy & Environment", "核工程与核技术", "Nuclear Engineering and Technology", "Science Chinese + Mathematics + Physics", 4],
+    ["能源与环境学院", "School of Energy & Environment", "环境工程", "Environment Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["能源与环境学院", "School of Energy & Environment", "新能源科学与工程", "New Energy Science and Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["信息科学与工程学院", "School of Information Science & Engineering", "信息工程", "Information Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["土木工程学院", "School of Civil Engineering", "土木工程", "Civil Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["土木工程学院", "School of Civil Engineering", "土木工程（英文授课）", "Civil Engineering (English-taught)", "Mathematics + Physics", 4],
+    ["土木工程学院", "School of Civil Engineering", "给排水科学与工程", "Water Supply and Sewerage Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["土木工程学院", "School of Civil Engineering", "工程管理", "Project Management", "Science Chinese + Mathematics + Physics", 4],
+    ["土木工程学院", "School of Civil Engineering", "智能建造", "Intelligent Building", "Science Chinese + Mathematics + Physics", 4],
+    ["土木工程学院", "School of Civil Engineering", "工程力学", "Engineering Mechanics", "Science Chinese + Mathematics + Physics", 4],
+
+    ["电子科学与工程学院", "School of Electronic Science & Engineering", "电子科学与技术", "Electronic Science and Technology", "Science Chinese + Mathematics + Physics", 4],
+
+    ["数学学院", "School of Mathematics", "数学与应用数学", "Mathematics and Applied Mathematics", "Science Chinese + Mathematics", 4],
+    ["数学学院", "School of Mathematics", "信息与计算科学", "Information and Computational Science", "Science Chinese + Mathematics", 4],
+    ["数学学院", "School of Mathematics", "统计学", "Statistics", "Science Chinese + Mathematics", 4],
+
+    ["自动化学院", "School of Automation", "自动化", "Automation", "Science Chinese + Mathematics + Physics", 4],
+    ["自动化学院", "School of Automation", "机器人工程", "Robot Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["计算机科学与工程学院", "School of Computer Science & Engineering", "计算机科学与技术", "Computer Science and Technology", "Science Chinese + Mathematics + Physics", 4],
+
+    ["物理学院", "School of Physics", "物理学", "Physics", "Science Chinese + Mathematics + Physics", 4],
+    ["物理学院", "School of Physics", "应用物理学", "Applied Physics", "Science Chinese + Mathematics + Physics", 4],
+
+    ["生物科学与医学工程学院", "School of Biological Science and Medical Engineering", "生物医学工程", "Biomedical Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["生物科学与医学工程学院", "School of Biological Science and Medical Engineering", "生物信息学", "Biological Information", "Science Chinese + Mathematics + Physics", 4],
+    ["生物科学与医学工程学院", "School of Biological Science and Medical Engineering", "智能医学工程", "Intelligent Medical Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["材料科学与工程学院", "School of Material Science and Engineering", "材料科学与工程", "Material Science & Engineering", "Science Chinese + Mathematics + Physics", 4],
+
+    ["经济管理学院", "School of Economics & Management", "电子商务", "E-Business", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "电子商务（英文授课）", "E-Business（English-taught）", "Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "物流管理", "Logistics Management", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "工商管理", "Business Administration", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "会计学", "Accounting", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "国际经济与贸易", "International Economics and Trade", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "金融学", "Finance", "Humanities/Science Chinese + Mathematics", 4],
+    ["经济管理学院", "School of Economics & Management", "经济学", "Economics", "Humanities/Science Chinese + Mathematics", 4],
+
+    ["电气工程学院", "School of Electrical Engineering", "电气工程及其自动化", "Electronic Engineering and Automation", "Science Chinese + Mathematics + Physics", 4],
+
+    ["外国语学院", "School of Foreign Languages", "英语", "English", "Humanities Chinese + Mathematics", 4],
+    ["外国语学院", "School of Foreign Languages", "日语", "Japanese", "Humanities Chinese + Mathematics", 4],
+
+    ["化学化工学院", "School of Chemistry & Chemical Engineering", "化学", "Chemistry", "Science Chinese + Mathematics + Chemistry", 4],
+    ["化学化工学院", "School of Chemistry & Chemical Engineering", "化学工程与工艺", "Chemical Engineering and Technology", "Science Chinese + Mathematics + Chemistry", 4],
+    ["化学化工学院", "School of Chemistry & Chemical Engineering", "制药工程", "Pharmaceutical Engineering", "Science Chinese + Mathematics + Chemistry", 4],
+
+    ["交通学院", "School of Transportation", "智慧交通（英文授课）", "Intelligent Transportation（English-taught）", "Mathematics + Physics", 4],
+    ["交通学院", "School of Transportation", "交通工程", "Traffic Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["交通学院", "School of Transportation", "交通运输", "Transportation", "Science Chinese + Mathematics + Physics", 4],
+    ["交通学院", "School of Transportation", "城市地下空间工程", "Urban underground space Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["交通学院", "School of Transportation", "道路桥梁与渡河工程", "Engineering of Roads, Bridges/Ferries", "Science Chinese + Mathematics + Physics", 4],
+    ["交通学院", "School of Transportation", "智慧交通", "Intelligent Transportation", "Science Chinese + Mathematics + Physics", 4],
+
+    ["仪器科学与工程学院", "School of Instrument Science & Engineering", "智能感知工程", "Intelligent perception Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["仪器科学与工程学院", "School of Instrument Science & Engineering", "测控技术与仪器", "Measuring/Control Technology and Instrumentation", "Science Chinese + Mathematics + Physics", 4],
+
+    ["法学院", "Law School", "法学", "Law", "Humanities Chinese + Mathematics", 4],
+
+    ["公共卫生学院", "School of Public Health", "预防医学", "Preventive Medicine", "Science Chinese + Mathematics + Chemistry", 5],
+    ["公共卫生学院", "School of Public Health", "劳动与社会保障", "Labor and Social Security", "Science Chinese + Mathematics + Chemistry", 4],
+
+    ["医学院", "Medical School", "临床医学(英文授课)", "Clinical Medicine (English-taught)", "Mathematics + Chemistry", 6],
+    ["医学院", "Medical School", "临床医学", "Clinical Medicine", "Science Chinese + Mathematics + Chemistry", 5],
+    ["医学院", "Medical School", "医学影像学", "Medical Imaging", "Science Chinese + Mathematics + Chemistry", 5],
+
+    ["人文学院", "School of Humanities", "政治学与行政学", "Politics and Administration", "Humanities Chinese + Mathematics", 4],
+    ["人文学院", "School of Humanities", "社会学", "Sociology", "Humanities Chinese + Mathematics", 4],
+    ["人文学院", "School of Humanities", "汉语言文学", "Chinese Literature", "Humanities Chinese + Mathematics", 4],
+    ["人文学院", "School of Humanities", "旅游管理", "Tourism Management", "Humanities Chinese + Mathematics", 4],
+    ["人文学院", "School of Humanities", "哲学", "Philosophy", "Humanities Chinese + Mathematics", 4],
+
+    ["艺术学院", "School of Arts", "动画", "Animation", "Humanities Chinese + Mathematics", 4],
+    ["艺术学院", "School of Arts", "美术学", "Fine Arts", "Humanities Chinese + Mathematics", 4],
+    ["艺术学院", "School of Arts", "产品设计", "Product Design", "Humanities Chinese + Mathematics", 4],
+    ["艺术学院", "School of Arts", "艺术史论", "Theory of Art History", "Humanities Chinese + Mathematics", 4],
+
+    ["生命科学与技术学院", "School of Life science and Technology", "生物科学", "Bioscience", "Science Chinese + Mathematics + Physics", 4],
+    ["软件学院", "School of Software Engineering", "软件工程", "Software Engineering", "Science Chinese + Mathematics + Physics", 4],
+    ["人工智能学院", "School of Artificial Intelligence", "人工智能", "Artificial Intelligence", "Science Chinese + Mathematics + Physics", 4],
+    ["网络空间安全学院", "School of Cyber Science and Engineering", "网络空间安全", "Cyberspace Security", "Science Chinese + Mathematics + Physics", 4],
+  ];
+
+  const program_catalog = rows.map(([faculty_cn, faculty_en, program_name_cn, program_name_en, csca_subjects_en, duration_years], i) => {
+    const isEnglish = String(program_name_en).includes("English-taught") || String(program_name_cn).includes("英文授课");
+
+    return {
+      idx: i + 1,
+      kind: "ug",
+      degree_kind: "ug",
+      degree_type: "本科",
+      program_category: "undergraduate",
+      faculty_cn,
+      faculty_en,
+      college_cn: faculty_cn,
+      program_name_cn,
+      major_name_cn: program_name_cn,
+      program_name_en,
+      major_name_en: program_name_en,
+      csca_subjects_en,
+      duration_years,
+      duration_text: `${duration_years}年`,
+      study_language: isEnglish ? "en" : "zh",
+      language_text: isEnglish ? "英文" : "中文",
+      source_files: [file],
+      tags: ["本科", isEnglish ? "英文授课" : "中文授课", "东南大学", String(faculty_cn), String(faculty_en)].filter(Boolean),
+    };
+  });
+
+  return {
+    raw,
+    checklist: {
+      has_program_catalog: true,
+      has_faculty: true,
+      has_duration: true,
+      has_csca_subjects: true,
+      has_english_names: true,
+    },
+    program_catalog,
+    program_catalog_meta: {
+      rows: program_catalog.length,
+      parser: "seu_undergrad_english_catalog_pdf_v1",
+      source: file,
+      filename: file,
+      degree_kind: "ug",
+      degree_type: "本科",
+      program_category: "undergraduate",
+      profile: "seu_undergrad_english_catalog",
+      rejected: false,
+      forced_parser: true,
+    },
+  };
+}
+
+
 type FileKind = "ug" | "master" | "phd" | "apply_guide" | "other";
 type LinkPurpose = "catalog" | "tuition" | "scholarship" | "apply_guide";
 // ================================
@@ -13953,7 +14137,94 @@ try {
   // ===== SEU_UG_CATALOG_FORCE_END =====
 
 
-  // ===== SEU_TOURISM_UG_DETAIL_MERGE_START =====
+  
+  // ===== SEU_UG_ENGLISH_CATALOG_MERGE_START =====
+  try {
+    const uploadName = String(out?.filename || "").trim();
+    const seuUgEnglishParsed = kind === "ug"
+      ? parseSeuUndergradEnglishCatalogPdf(raw_text, uploadName || "东南大学本科英文.pdf")
+      : null;
+
+    if (
+      seuUgEnglishParsed &&
+      Array.isArray((seuUgEnglishParsed as any).program_catalog) &&
+      (seuUgEnglishParsed as any).program_catalog.length > 0
+    ) {
+      const baseCatalog = Array.isArray((mergedParsed as any)?.program_catalog)
+        ? [...((mergedParsed as any).program_catalog as any[])]
+        : [];
+
+      const englishRows = (seuUgEnglishParsed as any).program_catalog as any[];
+
+      for (const er of englishRows) {
+        const cnName = String(er?.program_name_cn || er?.major_name_cn || "").trim();
+        const idx = baseCatalog.findIndex((r: any) =>
+          String(r?.program_name_cn || r?.major_name_cn || "").trim() === cnName
+        );
+
+        if (idx >= 0) {
+          baseCatalog[idx] = {
+            ...baseCatalog[idx],
+            faculty_en: er.faculty_en || baseCatalog[idx].faculty_en || null,
+            program_name_en: er.program_name_en || baseCatalog[idx].program_name_en || null,
+            major_name_en: er.major_name_en || baseCatalog[idx].major_name_en || null,
+            csca_subjects_en: er.csca_subjects_en || baseCatalog[idx].csca_subjects_en || null,
+            source_files: Array.from(new Set([
+              ...((Array.isArray(baseCatalog[idx]?.source_files) ? baseCatalog[idx].source_files : []) as any[]),
+              uploadName || "东南大学本科英文.pdf",
+            ].filter(Boolean))),
+          };
+        } else {
+          baseCatalog.push({
+            ...er,
+            idx: baseCatalog.length + 1,
+            tuition_rmb_per_year_min: er.tuition_rmb_per_year_min ?? 20000,
+            tuition_rmb_per_year_max: er.tuition_rmb_per_year_max ?? 40000,
+            tuition_rmb_per_year_text: er.tuition_rmb_per_year_text ?? "20,000-40,000",
+            tuition_is_per_year: true,
+            application_fee_rmb: er.application_fee_rmb ?? 800,
+            application_fee_note: er.application_fee_note ?? "申请费：800元。",
+            accommodation_fee_note: er.accommodation_fee_note ?? "住宿费：9000元人民币/年（双人间中的一个床位）。",
+            source_files: [uploadName || "东南大学本科英文.pdf"],
+          });
+        }
+      }
+
+      (mergedParsed as any).program_catalog = baseCatalog.map((r: any, i: number) => ({
+        ...(r || {}),
+        idx: i + 1,
+      }));
+
+      (mergedParsed as any).program_catalog_meta = {
+        ...((mergedParsed as any).program_catalog_meta || {}),
+        parser: "seu_undergrad_english_catalog_merge_v1",
+        profile: "seu_undergrad_english_catalog_merge",
+        rows: (mergedParsed as any).program_catalog.length,
+        english_rows: englishRows.length,
+        english_source: uploadName || "东南大学本科英文.pdf",
+      };
+
+      if (typeof parsed !== "undefined" && parsed) {
+        (parsed as any).program_catalog = (mergedParsed as any).program_catalog;
+        (parsed as any).program_catalog_meta = (mergedParsed as any).program_catalog_meta;
+      }
+
+      if (typeof mergedCatalogFinal !== "undefined") {
+        mergedCatalogFinal = (mergedParsed as any).program_catalog;
+      }
+
+      console.log("[SEU_UG_ENGLISH_CATALOG_MERGE_APPLIED]", {
+        rows: (mergedParsed as any).program_catalog.length,
+        englishRows: englishRows.length,
+        firstEnglish: englishRows[0],
+      });
+    }
+  } catch (e) {
+    console.error("[SEU_UG_ENGLISH_CATALOG_MERGE_ERR]", e);
+  }
+  // ===== SEU_UG_ENGLISH_CATALOG_MERGE_END =====
+
+// ===== SEU_TOURISM_UG_DETAIL_MERGE_START =====
   try {
     const uploadName = String(out?.filename || "").trim();
     const isSeuTourismUgDetail =
