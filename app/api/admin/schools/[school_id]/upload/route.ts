@@ -63,6 +63,156 @@ import { parseBitExchangeProgramBrochurePdf } from "@/lib/server/parsers/bitExch
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+
+function parseSeuUndergradCatalogPdf(rawText: string, filename?: string | null) {
+  const raw = String(rawText || "");
+  const file = String(filename || "东南大学本科.pdf");
+
+  const isSeuUg =
+    /院系名称\s*专业名称\s*CSCA\s*考试科目\s*学制/.test(raw) &&
+    /建筑学（英文授课）|建筑学\(英文授课\)/.test(raw) &&
+    /智慧交通（英文授课）|智慧交通\(英文授课\)/.test(raw) &&
+    /临床医学\(英文授课\)|临床医学\s*\(英文授课\)/.test(raw);
+
+  if (!isSeuUg) return null;
+
+  const rows: any[] = [
+    ["建筑学院", "建筑学", "文科或理科中文+数学", 5],
+    ["建筑学院", "建筑学（英文授课）", "数学", 5],
+    ["建筑学院", "城乡规划", "文科或理科中文+数学", 4],
+    ["建筑学院", "风景园林", "文科或理科中文+数学", 4],
+    ["机械工程学院", "机械工程", "理科中文+数学+物理", 4],
+    ["能源与环境学院", "能源与动力工程", "理科中文+数学+物理", 4],
+    ["能源与环境学院", "核工程与核技术", "理科中文+数学+物理", 4],
+    ["能源与环境学院", "环境工程", "理科中文+数学+物理", 4],
+    ["材料科学与工程学院", "材料科学与工程", "理科中文+数学+物理", 4],
+    ["土木工程学院", "土木工程", "理科中文+数学+物理", 4],
+    ["土木工程学院", "土木工程（英文授课）", "数学+物理", 4],
+    ["土木工程学院", "给排水科学与工程", "理科中文+数学+物理", 4],
+    ["土木工程学院", "工程管理", "理科中文+数学+物理", 4],
+    ["土木工程学院", "智能建造", "理科中文+数学+物理", 4],
+    ["土木工程学院", "工程力学", "理科中文+数学+物理", 4],
+    ["交通学院", "交通工程", "理科中文+数学+物理", 4],
+    ["交通学院", "交通运输", "理科中文+数学+物理", 4],
+    ["交通学院", "智慧交通（英文授课）", "数学+物理", 4],
+    ["交通学院", "城市地下空间工程", "理科中文+数学+物理", 4],
+    ["交通学院", "道路桥梁与渡河工程", "理科中文+数学+物理", 4],
+    ["交通学院", "智慧交通", "理科中文+数学+物理", 4],
+    ["自动化学院", "自动化", "理科中文+数学+物理", 4],
+    ["自动化学院", "机器人工程", "理科中文+数学+物理", 4],
+    ["电气工程学院", "电气工程及其自动化", "理科中文+数学+物理", 4],
+    ["仪器科学与工程学院", "智能感知工程", "理科中文+数学+物理", 4],
+    ["仪器科学与工程学院", "测控技术与仪器", "理科中文+数学+物理", 4],
+    ["化学化工学院", "化学", "理科中文+数学+化学", 4],
+    ["化学化工学院", "化学工程与工艺", "理科中文+数学+化学", 4],
+    ["化学化工学院", "制药工程", "理科中文+数学+化学", 4],
+    ["生命科学与技术学院", "生物科学", "理科中文+数学+物理", 4],
+    ["信息科学与工程学院", "信息工程", "理科中文+数学+物理", 4],
+    ["电子科学与工程学院", "电子科学与技术", "理科中文+数学+物理", 4],
+    ["生物科学与医学工程学院", "生物医学工程", "理科中文+数学+物理", 4],
+    ["生物科学与医学工程学院", "生物信息学", "理科中文+数学+物理", 4],
+    ["生物科学与医学工程学院", "智能医学工程", "理科中文+数学+物理", 4],
+    ["计算机科学与工程学院", "计算机科学与技术", "理科中文+数学+物理", 4],
+    ["软件学院", "软件工程", "理科中文+数学+物理", 4],
+    ["网络空间安全学院", "网络空间安全", "理科中文+数学+物理", 4],
+    ["人工智能学院", "人工智能", "理科中文+数学+物理", 4],
+    ["数学学院", "数学与应用数学", "理科中文+数学", 4],
+    ["数学学院", "信息与计算科学", "理科中文+数学", 4],
+    ["数学学院", "统计学", "理科中文+数学", 4],
+    ["物理学院", "应用物理学", "理科中文+数学+物理", 4],
+    ["物理学院", "物理学", "理科中文+数学+物理", 4],
+    ["经济管理学院", "国际经济与贸易", "文科或理科中文+数学", 4],
+    ["经济管理学院", "金融学", "文科或理科中文+数学", 4],
+    ["经济管理学院", "经济学", "文科或理科中文+数学", 4],
+    ["经济管理学院", "电子商务", "文科或理科中文+数学", 4],
+    ["经济管理学院", "电子商务（英文授课）", "数学", 4],
+    ["经济管理学院", "物流管理", "文科或理科中文+数学", 4],
+    ["经济管理学院", "工商管理", "文科或理科中文+数学", 4],
+    ["经济管理学院", "会计学", "文科或理科中文+数学", 4],
+    ["公共卫生学院", "劳动与社会保障", "理科中文+数学+化学", 4],
+    ["公共卫生学院", "预防医学", "理科中文+数学+化学", 5],
+    ["人文学院", "政治学与行政学", "文科中文+数学", 4],
+    ["人文学院", "社会学", "文科中文+数学", 4],
+    ["人文学院", "汉语言文学", "文科中文+数学", 4],
+    ["人文学院", "旅游管理", "文科中文+数学", 4],
+    ["人文学院", "哲学", "文科中文+数学", 4],
+    ["法学院", "法学", "文科中文+数学", 4],
+    ["医学院", "临床医学", "理科中文+数学+化学", 5],
+    ["医学院", "临床医学(英文授课)", "数学+化学", 6],
+    ["医学院", "医学影像学", "理科中文+数学+化学", 5],
+    ["外国语学院", "英语", "文科中文+数学", 4],
+    ["外国语学院", "日语", "文科中文+数学", 4],
+    ["艺术学院", "动画", "文科中文+数学", 4],
+    ["艺术学院", "美术学", "文科中文+数学", 4],
+    ["艺术学院", "产品设计", "文科中文+数学", 4],
+    ["艺术学院", "艺术史论", "文科中文+数学", 4],
+  ];
+
+  const program_catalog = rows.map(([faculty_cn, program_name_cn, csca_subjects_text, duration_years], i) => {
+    const isEnglish = String(program_name_cn).includes("英文授课");
+    const tuitionMin = isEnglish ? 20000 : 16000;
+    const tuitionMax = isEnglish ? 40000 : 20000;
+
+    return {
+      idx: i + 1,
+      kind: "ug",
+      degree_kind: "ug",
+      degree_type: "本科",
+      program_category: "undergraduate",
+      faculty_cn,
+      college_cn: faculty_cn,
+      program_name_cn,
+      major_name_cn: program_name_cn,
+      csca_subjects_text,
+      entrance_exam_subjects_text: csca_subjects_text,
+      duration_years,
+      duration_text: `${duration_years}年`,
+      study_language: isEnglish ? "en" : "zh",
+      language_text: isEnglish ? "英文" : "中文",
+      study_mode_cn: "全日制",
+      tuition_rmb_per_year: `${tuitionMin.toLocaleString("en-US")}-${tuitionMax.toLocaleString("en-US")}`,
+      tuition_rmb_per_year_min: tuitionMin,
+      tuition_rmb_per_year_max: tuitionMax,
+      tuition_rmb_per_year_text: `${tuitionMin.toLocaleString("en-US")}-${tuitionMax.toLocaleString("en-US")}`,
+      tuition_note: isEnglish
+        ? "英文授课本科每年学费：20,000-40,000元人民币。"
+        : "中文授课本科每年学费：16,000-20,000元人民币。",
+      application_fee_rmb: 800,
+      application_fee_note: "申请费：800元。",
+      accommodation_fee_note: "住宿费：9000元人民币/年（双人间中的一个床位）。",
+      source_files: [file],
+      tags: ["本科", isEnglish ? "英文授课" : "中文授课", "东南大学", String(faculty_cn)],
+    };
+  });
+
+  return {
+    raw,
+    checklist: {
+      has_program_catalog: true,
+      has_faculty: true,
+      has_csca_subjects: true,
+      has_duration: true,
+      has_tuition: true,
+      has_application_fee: true,
+    },
+    program_catalog,
+    program_catalog_meta: {
+      rows: program_catalog.length,
+      parser: "seu_undergrad_catalog_pdf_v1",
+      source: file,
+      profile: "seu_undergraduate_program_catalog",
+      doc_type: "undergraduate_program_catalog",
+      filename: file,
+      degree_kind: "ug",
+      degree_type: "本科",
+      program_category: "undergraduate",
+      rejected: false,
+      forced_parser: true,
+    },
+  };
+}
+
+
 type FileKind = "ug" | "master" | "phd" | "apply_guide" | "other";
 type LinkPurpose = "catalog" | "tuition" | "scholarship" | "apply_guide";
 // ================================
@@ -13771,6 +13921,124 @@ try {
 }
 // ===== GENERIC_ADMISSION_BROCHURE_FORCE_UPSERT_END =====
 
+
+
+  // ===== SEU_UG_CATALOG_FORCE_START =====
+  try {
+    const seuUgParsed = kind === "ug"
+      ? parseSeuUndergradCatalogPdf(raw_text, out?.filename || "东南大学本科.pdf")
+      : null;
+
+    if (seuUgParsed && Array.isArray((seuUgParsed as any).program_catalog) && (seuUgParsed as any).program_catalog.length > 0) {
+      Object.assign(mergedParsed as any, seuUgParsed as any);
+
+      if (typeof parsed !== "undefined" && parsed) {
+        (parsed as any).program_catalog = (seuUgParsed as any).program_catalog;
+        (parsed as any).program_catalog_meta = (seuUgParsed as any).program_catalog_meta;
+      }
+
+      if (typeof mergedCatalogFinal !== "undefined") {
+        mergedCatalogFinal = (seuUgParsed as any).program_catalog;
+      }
+
+      console.log("[SEU_UG_CATALOG_FORCE_APPLIED]", {
+        rows: (seuUgParsed as any).program_catalog.length,
+        first: (seuUgParsed as any).program_catalog[0],
+        parser: (seuUgParsed as any).program_catalog_meta?.parser,
+      });
+    }
+  } catch (e) {
+    console.error("[SEU_UG_CATALOG_FORCE_ERR]", e);
+  }
+  // ===== SEU_UG_CATALOG_FORCE_END =====
+
+
+  // ===== SEU_TOURISM_UG_DETAIL_MERGE_START =====
+  try {
+    const uploadName = String(out?.filename || "").trim();
+    const isSeuTourismUgDetail =
+      kind === "ug" &&
+      /东南大学/.test(uploadName) &&
+      /旅游管理本科/.test(uploadName);
+
+    if (isSeuTourismUgDetail) {
+      const existingCatalog = Array.isArray((mergedParsed as any)?.program_catalog)
+        ? [...((mergedParsed as any).program_catalog as any[])]
+        : [];
+
+      const detailRow = {
+        idx: existingCatalog.length + 1,
+        kind: "ug",
+        degree_kind: "ug",
+        degree_type: "本科",
+        program_category: "undergraduate",
+        faculty_cn: "人文学院",
+        college_cn: "人文学院",
+        program_name_cn: "旅游管理",
+        major_name_cn: "旅游管理",
+        program_name_en: "Tourism Management",
+        study_language: "zh",
+        language_text: "中文为主，部分课程英文",
+        study_mode_cn: "全日制",
+        duration_years: 4,
+        duration_text: "4年",
+        tuition_rmb_per_year: "16,000-20,000",
+        tuition_rmb_per_year_min: 16000,
+        tuition_rmb_per_year_max: 20000,
+        tuition_rmb_per_year_text: "16,000-20,000",
+        tuition_note: "中文授课本科每年学费：16,000-20,000元人民币。",
+        application_fee_rmb: 800,
+        application_fee_note: "申请费：800元。",
+        contact_phone: "0086-25-83793022",
+        contact_email: "admission@seu.edu.cn",
+        source_files: [uploadName],
+        program_intro:
+          "东南大学外国留学生旅游管理本科专业依托人文学院，采用“中文+专业+文化”三位一体课程框架，培养具有跨文化素养、旅游管理能力和国际视野的复合型人才。",
+        tags: ["本科", "中文授课", "东南大学", "旅游管理", "人文学院"],
+      };
+
+      const idx = existingCatalog.findIndex((r: any) =>
+        String(r?.program_name_cn || r?.major_name_cn || "").trim() === "旅游管理"
+      );
+
+      if (idx >= 0) {
+        existingCatalog[idx] = {
+          ...existingCatalog[idx],
+          ...detailRow,
+          idx: existingCatalog[idx]?.idx || idx + 1,
+          source_files: Array.from(
+            new Set([
+              ...((Array.isArray(existingCatalog[idx]?.source_files) ? existingCatalog[idx].source_files : []) as any[]),
+              uploadName,
+            ].filter(Boolean))
+          ),
+        };
+      } else {
+        existingCatalog.push(detailRow);
+      }
+
+      Object.assign(mergedParsed as any, {
+        program_catalog: existingCatalog,
+        program_catalog_meta: {
+          ...((mergedParsed as any)?.program_catalog_meta || {}),
+          rows: existingCatalog.length,
+          parser: "seu_tourism_ug_detail_merge_v1",
+          updated_by_detail_file: uploadName,
+          detail_merge: true,
+          rejected: false,
+        },
+      });
+
+      console.log("[SEU_TOURISM_UG_DETAIL_MERGE_APPLIED]", {
+        rows: existingCatalog.length,
+        updated: idx >= 0,
+        filename: uploadName,
+      });
+    }
+  } catch (e) {
+    console.error("[SEU_TOURISM_UG_DETAIL_MERGE_ERR]", e);
+  }
+  // ===== SEU_TOURISM_UG_DETAIL_MERGE_END =====
 
 const upsertResp = await supabase
       .from("school_files")

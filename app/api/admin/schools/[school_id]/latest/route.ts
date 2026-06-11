@@ -4,11 +4,33 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+
+async function fetchWithRetry(input: RequestInfo | URL, init?: RequestInit) {
+  const retries = 3;
+  let lastErr: any = null;
+
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fetch(input, init);
+    } catch (e: any) {
+      lastErr = e;
+      const msg = String(e?.message || e || "");
+      const retryable =
+        /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket disconnected|TLS connection/i.test(msg);
+
+      if (!retryable || i === retries - 1) throw e;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+
+  throw lastErr;
+}
+
 function supabaseAdmin() {
   const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
-  return createClient(url, key, { auth: { persistSession: false } });
+  return createClient(url, key, { auth: { persistSession: false }, global: { fetch: fetchWithRetry as typeof fetch } });
 }
 
 /**

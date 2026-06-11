@@ -4,6 +4,40 @@ import React, { Suspense, useCallback, useEffect, useMemo, useState } from "reac
 import { useParams, useSearchParams } from "next/navigation";
 
 
+
+function displayTuitionYear(row: any) {
+  const text = row?.tuition_rmb_per_year_text;
+  if (text !== null && text !== undefined && String(text).trim() !== "") {
+    return String(text);
+  }
+
+  const one = row?.tuition_rmb_per_year;
+  if (one !== null && one !== undefined && String(one).trim() !== "") {
+    const n = Number(one);
+    return Number.isFinite(n) ? n.toLocaleString("en-US") : String(one);
+  }
+
+  const min = row?.tuition_rmb_per_year_min;
+  const max = row?.tuition_rmb_per_year_max;
+  if (
+    min !== null &&
+    min !== undefined &&
+    max !== null &&
+    max !== undefined &&
+    String(min).trim() !== "" &&
+    String(max).trim() !== ""
+  ) {
+    const a = Number(min);
+    const b = Number(max);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      return `${a.toLocaleString("en-US")}-${b.toLocaleString("en-US")}`;
+    }
+    return `${min}-${max}`;
+  }
+
+  return "-";
+}
+
 function getProgramKindLabel(row: any, fallback?: string) {
   const raw = String(
     row?.program_category ||
@@ -66,6 +100,36 @@ type ApiLatestOk = {
 type ApiErr = { ok: false; error: string };
 
 // ===== helper functions（必须在组件外）=====
+
+
+function formatTuitionYear(row: any) {
+  const one = row?.tuition_rmb_per_year;
+  if (one !== null && one !== undefined && String(one).trim() !== "") {
+    const n = Number(one);
+    return Number.isFinite(n) ? n.toLocaleString("en-US") : String(one);
+  }
+
+  const min = row?.tuition_rmb_per_year_min;
+  const max = row?.tuition_rmb_per_year_max;
+
+  if (
+    min !== null &&
+    min !== undefined &&
+    max !== null &&
+    max !== undefined &&
+    String(min).trim() !== "" &&
+    String(max).trim() !== ""
+  ) {
+    const a = Number(min);
+    const b = Number(max);
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      return `${a.toLocaleString("en-US")}-${b.toLocaleString("en-US")}`;
+    }
+    return `${min}-${max}`;
+  }
+
+  return "-";
+}
 
 function kindLabel(k: FileKind) {
   if (k === "ug") return "本科";
