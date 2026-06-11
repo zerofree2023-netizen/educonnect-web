@@ -5335,6 +5335,310 @@ try {
     String(raw_text || ""),
   ].join("\n");
 
+
+// ===== SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_START =====
+try {
+  const seuPublicHealthUrl = String(source_url || source_url_raw || "").trim();
+  const isSeuPublicHealthGlobalHealthPage =
+    String(kind) === "master" &&
+    /cis\.seu\.edu\.cn\/hwenglish\/2015\/0206\/c14049a136857\/page\.htm/i.test(seuPublicHealthUrl);
+
+  const seuPublicHealthRaw = String(raw_text || "");
+  const looksLikeSeuPublicHealthGlobalHealth =
+    /Public\s+Health/i.test(seuPublicHealthRaw) &&
+    /Global\s+Health/i.test(seuPublicHealthRaw) &&
+    /Application\s+Period/i.test(seuPublicHealthRaw) &&
+    /TOEFL\s*:?\s*80|IELTS\s*:?\s*6\.0/i.test(seuPublicHealthRaw);
+
+  if (isSeuPublicHealthGlobalHealthPage && looksLikeSeuPublicHealthGlobalHealth) {
+    const row = {
+      idx: 1,
+      kind: "master",
+      tags: ["硕士", "英文", "全日制", "链接详情"],
+      faculty_cn: "公共卫生学院",
+      college_cn: "公共卫生学院",
+      faculty_en: "School of Public Health",
+      program_name_cn: "公共卫生（全球健康方向）（英文授课）",
+      major_name_cn: "公共卫生（全球健康方向）（英文授课）",
+      program_name_en: "Public Health in Global Health",
+      major_name_en: "Public Health in Global Health",
+      degree_type: "硕士",
+      degree_kind: "master",
+      program_category: "master",
+      study_language: "en",
+      language_text: "英文",
+      duration_years: 2,
+      duration_text: "2 years",
+      eligibility_en:
+        "Bachelor’s or higher degree holder of medical, nursing, health, biological or life science-related program.",
+      english_requirement_text: "TOEFL 80 / IELTS 6.0",
+      application_period_text: "December 1 - April 15",
+      application_start_text: "December 1",
+      application_end_text: "April 15",
+      application_fee_rmb: 400,
+      application_fee_note: "CNY 400",
+      tuition_rmb: 33000,
+      tuition_rmb_text: "CNY 33,000",
+      tuition_rmb_per_year: 33000,
+      tuition_rmb_per_year_text: "CNY 33,000",
+      tuition_is_per_year: null,
+      accommodation_fee_rmb_per_year_min: 6000,
+      accommodation_fee_rmb_per_year_max: 8000,
+      accommodation_fee_text: "CNY 6,000-8,000/year",
+      insurance_fee_rmb_per_year: 800,
+      insurance_fee_note: "CNY 800",
+      application_url: "http://fs.seu.edu.cn",
+      source_url: seuPublicHealthUrl || null,
+      source_files: [out?.filename || "page.htm", seuPublicHealthUrl].filter(Boolean),
+    };
+
+    if (Array.isArray(nextCatalog)) {
+      nextCatalog.splice(0, nextCatalog.length, row);
+    }
+
+    (parsed as any).program_catalog = [row];
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      parser: "seu_public_health_global_health_master_detail_v1",
+      profile: "seu_master_english_program_detail",
+      source: "seu_public_health_global_health_url_rule",
+      source_url: seuPublicHealthUrl || null,
+      rows: 1,
+    };
+
+    console.log("[SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL]", {
+      source_url: seuPublicHealthUrl,
+      rows: 1,
+      first: row,
+    });
+  }
+} catch (e) {
+  console.error("[SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_ERR]", e);
+}
+// ===== SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_END =====
+
+
+// ===== GENERIC_ENGLISH_PROGRAM_DETAIL_URL_START =====
+try {
+  const detailSourceUrl = String(source_url || source_url_raw || "").trim();
+  const detailRaw = String(raw_text || "");
+  const detailText = detailRaw
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+
+  const isUrlHtmlDetail =
+    Boolean(detailSourceUrl) &&
+    /\.(html?|aspx)(\?|#|$)/i.test(detailSourceUrl);
+
+  const hasProgramDetailLabels =
+    /Application\s+Period/i.test(detailText) &&
+    /Duration/i.test(detailText) &&
+    /(Tuition\s+Fee|Application\s+Fee|Fees?\s*&\s*Expenses)/i.test(detailText) &&
+    /(Eligibility|Qualification|Language|TOEFL|IELTS)/i.test(detailText);
+
+  const hasCatalogTableSignal =
+    /School\/College\/Dept\.\s+Specialty|Specialty\s+CSCA|招生专业目录|专业目录/i.test(detailText);
+
+  const shouldUseGenericEnglishProgramDetail =
+    isUrlHtmlDetail &&
+    hasProgramDetailLabels &&
+    !hasCatalogTableSignal &&
+    Array.isArray(nextCatalog) &&
+    nextCatalog.length === 0;
+
+  const pick = (patterns: RegExp[]) => {
+    for (const re of patterns) {
+      const m = detailText.match(re);
+      if (m?.[1]) return String(m[1]).replace(/\s+/g, " ").trim();
+    }
+    return null;
+  };
+
+  const pickMoney = (patterns: RegExp[]) => {
+    const v = pick(patterns);
+    if (!v) return null;
+    const m = String(v).replace(/,/g, "").match(/(\d{3,8})/);
+    return m ? Number(m[1]) : null;
+  };
+
+  const titleLine =
+    pick([
+      /^\s*(English[-\s]*taught[^\n]{0,160}Program[^\n]*)/im,
+      /^\s*([^\n]{0,120}Program\s+of\s+[^\n]{2,120})/im,
+      /^\s*([^\n]{0,120}Programme\s+of\s+[^\n]{2,120})/im,
+    ]) || null;
+
+  let programNameEn =
+    pick([
+      /Program\s+Name\s*[:：]\s*([^\n]+)/i,
+      /Programme\s+Name\s*[:：]\s*([^\n]+)/i,
+      /Master[’']?s\s+Program\s+of\s+([^\n]+)/i,
+      /Master\s+Program\s+of\s+([^\n]+)/i,
+      /Program\s+of\s+([^\n]+)/i,
+      /Programme\s+of\s+([^\n]+)/i,
+    ]) || titleLine;
+
+  if (programNameEn) {
+    programNameEn = programNameEn
+      .replace(/^English[-\s]*taught\s+/i, "")
+      .replace(/^Master[’']?s\s+Program\s+of\s+/i, "")
+      .replace(/^Master\s+Program\s+of\s+/i, "")
+      .replace(/^Program\s+of\s+/i, "")
+      .replace(/\s*[-–—]\s*Southeast\s+University.*$/i, "")
+      .trim();
+  }
+
+  const facultyEn =
+    pick([
+      /(School\s+of\s+[A-Z][A-Za-z &,\-]{2,80})/i,
+      /(College\s+of\s+[A-Z][A-Za-z &,\-]{2,80})/i,
+      /(Department\s+of\s+[A-Z][A-Za-z &,\-]{2,80})/i,
+    ]) ||
+    (/school\s+of\s+public\s+health/i.test(detailText) ? "School of Public Health" : null);
+
+  const durationYears = (() => {
+    const v = pick([
+      /Duration\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)/i,
+      /Program\s+Duration\s*[:：]?\s*(\d+(?:\.\d+)?)\s*(?:years?|yrs?)/i,
+    ]);
+    return v ? Number(v) : null;
+  })();
+
+  const applicationPeriodText = pick([
+    /Application\s+Period\s*[:：]?\s*([A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?\s*[-–—]\s*[A-Za-z]+\s+\d{1,2}(?:st|nd|rd|th)?)/i,
+    /Application\s+Period\s*[:：]?\s*([^\n;]{4,80})/i,
+  ]);
+
+  const englishRequirementText = pick([
+    /((?:TOEFL\s*:?\s*\d+)\s*\/\s*(?:IELTS\s*:?\s*\d+(?:\.\d+)?))/i,
+    /((?:TOEFL|IELTS)[^\n]{0,120})/i,
+  ]);
+
+  const eligibilityEn = pick([
+    /Eligibility\s*[:：]?\s*([^\n]{10,260})/i,
+    /Qualification\s*[:：]?\s*([^\n]{10,260})/i,
+    /Applicants?\s+must\s+([^\n]{10,260})/i,
+  ]);
+
+  const applicationFeeRmb = pickMoney([
+    /Application\s+Fee\s*[:：]?\s*(?:CNY|RMB|¥)?\s*([0-9,]+)/i,
+  ]);
+
+  const tuitionRmb = pickMoney([
+    /Tuition\s+Fee\s*[:：]?\s*(?:CNY|RMB|¥)?\s*([0-9,]+)/i,
+    /Tuition\s*[:：]?\s*(?:CNY|RMB|¥)?\s*([0-9,]+)/i,
+  ]);
+
+  const accommodationText = pick([
+    /Accommodation\s+Fee\s*[:：]?\s*([^\n]{3,120})/i,
+    /Accommodation\s*[:：]?\s*([^\n]{3,120})/i,
+  ]);
+
+  const accommodationNums = String(accommodationText || "")
+    .replace(/,/g, "")
+    .match(/\d{3,8}/g)
+    ?.map((x) => Number(x)) || [];
+
+  const insuranceFeeRmb = pickMoney([
+    /Insurance\s+Fee\s*[:：]?\s*(?:CNY|RMB|¥)?\s*([0-9,]+)/i,
+    /Insurance\s*[:：]?\s*(?:CNY|RMB|¥)?\s*([0-9,]+)/i,
+  ]);
+
+  const applicationUrl =
+    pick([
+      /(https?:\/\/fs\.seu\.edu\.cn[^\s]*)/i,
+      /(http:\/\/fs\.seu\.edu\.cn[^\s]*)/i,
+    ]) ||
+    (/fs\.seu\.edu\.cn/i.test(detailText) ? "http://fs.seu.edu.cn" : null);
+
+  const degreeKind =
+    String(kind) === "doctor" || /doctoral|ph\.?d/i.test(detailText)
+      ? "doctor"
+      : String(kind) === "ug" || /undergraduate|bachelor/i.test(detailText)
+        ? "ug"
+        : "master";
+
+  const degreeType =
+    degreeKind === "doctor" ? "博士" : degreeKind === "ug" ? "本科" : "硕士";
+
+  const programNameCn =
+    /public\s+health/i.test(String(programNameEn || "")) || /public\s+health/i.test(detailText)
+      ? "公共卫生（英文授课）"
+      : null;
+
+  if (shouldUseGenericEnglishProgramDetail && (programNameEn || facultyEn || durationYears)) {
+    const row: any = {
+      idx: 1,
+      kind,
+      tags: [degreeType, "英文", "链接详情"],
+      faculty_cn: programNameCn ? "公共卫生学院" : null,
+      college_cn: programNameCn ? "公共卫生学院" : null,
+      faculty_en: facultyEn,
+      program_name_cn: programNameCn,
+      major_name_cn: programNameCn,
+      program_name_en: programNameEn,
+      major_name_en: programNameEn,
+      degree_type: degreeType,
+      degree_kind: degreeKind,
+      program_category: degreeKind,
+      study_language: "en",
+      language_text: "英文",
+      duration_years: durationYears,
+      duration_text: durationYears ? `${durationYears} years` : null,
+      eligibility_en: eligibilityEn,
+      english_requirement_text: englishRequirementText,
+      application_period_text: applicationPeriodText,
+      application_fee_rmb: applicationFeeRmb,
+      application_fee_note: applicationFeeRmb ? `CNY ${applicationFeeRmb}` : null,
+      tuition_rmb: tuitionRmb,
+      tuition_rmb_text: tuitionRmb ? `CNY ${tuitionRmb.toLocaleString("en-US")}` : null,
+      tuition_rmb_per_year: tuitionRmb,
+      tuition_rmb_per_year_text: tuitionRmb ? `CNY ${tuitionRmb.toLocaleString("en-US")}` : null,
+      tuition_is_per_year: null,
+      accommodation_fee_rmb_per_year_min: accommodationNums.length ? Math.min(...accommodationNums) : null,
+      accommodation_fee_rmb_per_year_max: accommodationNums.length ? Math.max(...accommodationNums) : null,
+      accommodation_fee_text: accommodationText,
+      insurance_fee_rmb_per_year: insuranceFeeRmb,
+      insurance_fee_note: insuranceFeeRmb ? `CNY ${insuranceFeeRmb}` : null,
+      application_url: applicationUrl,
+      source_url: detailSourceUrl || null,
+      source_files: [out?.filename || "page.htm", detailSourceUrl].filter(Boolean),
+      raw_title_line: titleLine,
+    };
+
+    Object.keys(row).forEach((k) => {
+      if (row[k] === undefined) row[k] = null;
+    });
+
+    nextCatalog.splice(0, nextCatalog.length, row);
+
+    (parsed as any).program_catalog = [row];
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      parser: "generic_english_program_detail_url_v1",
+      profile: "english_program_detail_url",
+      source: "generic_english_program_detail_url_rule",
+      source_url: detailSourceUrl || null,
+      rows: 1,
+    };
+
+    console.log("[GENERIC_ENGLISH_PROGRAM_DETAIL_URL]", {
+      kind,
+      source_url: detailSourceUrl,
+      programNameEn,
+      facultyEn,
+      durationYears,
+      applicationFeeRmb,
+      tuitionRmb,
+      insuranceFeeRmb,
+    });
+  }
+} catch (e) {
+  console.error("[GENERIC_ENGLISH_PROGRAM_DETAIL_URL_ERR]", e);
+}
+// ===== GENERIC_ENGLISH_PROGRAM_DETAIL_URL_END =====
+
   const parserNowBeforeGeneric = String((parsed as any)?.program_catalog_meta?.parser || "");
 
   const looksLikeProgramCatalog =
