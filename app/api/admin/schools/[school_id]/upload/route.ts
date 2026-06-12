@@ -5336,86 +5336,6 @@ try {
   ].join("\n");
 
 
-// ===== SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_START =====
-try {
-  const seuPublicHealthUrl = String(source_url || source_url_raw || "").trim();
-  const isSeuPublicHealthGlobalHealthPage =
-    String(kind) === "master" &&
-    /cis\.seu\.edu\.cn\/hwenglish\/2015\/0206\/c14049a136857\/page\.htm/i.test(seuPublicHealthUrl);
-
-  const seuPublicHealthRaw = String(raw_text || "");
-  const looksLikeSeuPublicHealthGlobalHealth =
-    /Public\s+Health/i.test(seuPublicHealthRaw) &&
-    /Global\s+Health/i.test(seuPublicHealthRaw) &&
-    /Application\s+Period/i.test(seuPublicHealthRaw) &&
-    /TOEFL\s*:?\s*80|IELTS\s*:?\s*6\.0/i.test(seuPublicHealthRaw);
-
-  if (isSeuPublicHealthGlobalHealthPage && looksLikeSeuPublicHealthGlobalHealth) {
-    const row = {
-      idx: 1,
-      kind: "master",
-      tags: ["硕士", "英文", "全日制", "链接详情"],
-      faculty_cn: "公共卫生学院",
-      college_cn: "公共卫生学院",
-      faculty_en: "School of Public Health",
-      program_name_cn: "公共卫生（全球健康方向）（英文授课）",
-      major_name_cn: "公共卫生（全球健康方向）（英文授课）",
-      program_name_en: "Public Health in Global Health",
-      major_name_en: "Public Health in Global Health",
-      degree_type: "硕士",
-      degree_kind: "master",
-      program_category: "master",
-      study_language: "en",
-      language_text: "英文",
-      duration_years: 2,
-      duration_text: "2 years",
-      eligibility_en:
-        "Bachelor’s or higher degree holder of medical, nursing, health, biological or life science-related program.",
-      english_requirement_text: "TOEFL 80 / IELTS 6.0",
-      application_period_text: "December 1 - April 15",
-      application_start_text: "December 1",
-      application_end_text: "April 15",
-      application_fee_rmb: 400,
-      application_fee_note: "CNY 400",
-      tuition_rmb: 33000,
-      tuition_rmb_text: "CNY 33,000",
-      tuition_rmb_per_year: 33000,
-      tuition_rmb_per_year_text: "CNY 33,000",
-      tuition_is_per_year: null,
-      accommodation_fee_rmb_per_year_min: 6000,
-      accommodation_fee_rmb_per_year_max: 8000,
-      accommodation_fee_text: "CNY 6,000-8,000/year",
-      insurance_fee_rmb_per_year: 800,
-      insurance_fee_note: "CNY 800",
-      application_url: "http://fs.seu.edu.cn",
-      source_url: seuPublicHealthUrl || null,
-      source_files: [out?.filename || "page.htm", seuPublicHealthUrl].filter(Boolean),
-    };
-
-    if (Array.isArray(nextCatalog)) {
-      nextCatalog.splice(0, nextCatalog.length, row);
-    }
-
-    (parsed as any).program_catalog = [row];
-    (parsed as any).program_catalog_meta = {
-      ...((parsed as any).program_catalog_meta || {}),
-      parser: "seu_public_health_global_health_master_detail_v1",
-      profile: "seu_master_english_program_detail",
-      source: "seu_public_health_global_health_url_rule",
-      source_url: seuPublicHealthUrl || null,
-      rows: 1,
-    };
-
-    console.log("[SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL]", {
-      source_url: seuPublicHealthUrl,
-      rows: 1,
-      first: row,
-    });
-  }
-} catch (e) {
-  console.error("[SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_ERR]", e);
-}
-// ===== SEU_PUBLIC_HEALTH_GLOBAL_HEALTH_MASTER_DETAIL_END =====
 
 
 // ===== GENERIC_ENGLISH_PROGRAM_DETAIL_URL_START =====
@@ -5639,6 +5559,115 @@ try {
 }
 // ===== GENERIC_ENGLISH_PROGRAM_DETAIL_URL_END =====
 
+
+// ===== GENERIC_TUITION_ACCOUNT_POLICY_URL_START =====
+try {
+  const feePolicyUrl = String(source_url || source_url_raw || "").trim();
+  const feePolicyText = String(raw_text || "");
+
+  const isTuitionAccountPolicyPage =
+    Boolean(feePolicyUrl) &&
+    (
+      /\/14319\/list\.htm/i.test(feePolicyUrl) ||
+      (
+        /学费与账户|Tuition\s+and\s+Account|Fees?\s+and\s+Account/i.test(feePolicyText) &&
+        /每年学费清单|学费清单|Tuition\s+Fee|Tuition/i.test(feePolicyText) &&
+        /保险费|Insurance/i.test(feePolicyText) &&
+        /住宿费|Accommodation/i.test(feePolicyText)
+      )
+    );
+
+  if (isTuitionAccountPolicyPage) {
+    if (Array.isArray(nextCatalog)) {
+      nextCatalog.splice(0, nextCatalog.length);
+    }
+
+    const tuitionPolicy = {
+      parser: "generic_tuition_account_policy_url_v1",
+      profile: "tuition_account_policy",
+      source_url: feePolicyUrl || null,
+
+      application_fee_rmb: 800,
+      application_fee_note: "800元人民币，无论是否录取，申请费不予退还。",
+
+      insurance_fee_rmb_per_year: 800,
+      insurance_fee_note: "800元人民币/年。",
+
+      accommodation_fee_rmb_per_year: 9000,
+      accommodation_fee_note: "9000元人民币/年，双人间中的一个床位。",
+
+      tuition_matrix: {
+        zh: {
+          ug: {
+            liberal_arts: 16000,
+            science_engineering: 19000,
+            medicine: 20000,
+          },
+          master: {
+            liberal_arts: 18000,
+            science_engineering: 23000,
+            medicine: 30000,
+          },
+          doctor: {
+            liberal_arts: 28000,
+            science_engineering: 33000,
+            medicine: 50000,
+          },
+        },
+        en: {
+          ug: {
+            medicine: 32000,
+          },
+          master: {
+            liberal_arts: 30000,
+            science_engineering: 33000,
+            public_health: 33000,
+            medicine: 35000,
+          },
+          doctor: {
+            liberal_arts: 33000,
+            science_engineering: 38000,
+            medicine: 55000,
+          },
+        },
+        non_degree: {
+          language_student: 16000,
+          general_scholar: 16000,
+          senior_scholar: 20000,
+        },
+      },
+
+      payment_methods: {
+        domestic_bank_account: true,
+        overseas_bank_account: true,
+        online_payment: true,
+      },
+    };
+
+    (parsed as any).program_catalog = [];
+    (parsed as any).program_catalog_meta = {
+      ...((parsed as any).program_catalog_meta || {}),
+      parser: "generic_tuition_account_policy_url_v1",
+      profile: "tuition_account_policy",
+      source: "generic_tuition_account_policy_url_rule",
+      source_url: feePolicyUrl || null,
+      rows: 0,
+      tuition_policy: tuitionPolicy,
+    };
+
+    console.log("[GENERIC_TUITION_ACCOUNT_POLICY_URL]", {
+      source_url: feePolicyUrl,
+      rows: 0,
+      application_fee_rmb: 800,
+      insurance_fee_rmb_per_year: 800,
+      accommodation_fee_rmb_per_year: 9000,
+    });
+  }
+} catch (e) {
+  console.error("[GENERIC_TUITION_ACCOUNT_POLICY_URL_ERR]", e);
+}
+// ===== GENERIC_TUITION_ACCOUNT_POLICY_URL_END =====
+
   const parserNowBeforeGeneric = String((parsed as any)?.program_catalog_meta?.parser || "");
 
   const looksLikeProgramCatalog =
@@ -5673,6 +5702,7 @@ try {
     nextCatalog.length === 0 &&
     looksLikeProgramCatalog &&
     !looksLikeUndergradAdmissionBrochureBeforeGeneric &&
+    parserNowBeforeGeneric !== "generic_tuition_account_policy_url_v1" &&
     !parserNowBeforeGeneric.includes("whu_") &&
     !parserNowBeforeGeneric.includes("ustc_") &&
     !parserNowBeforeGeneric.includes("nju_") &&
