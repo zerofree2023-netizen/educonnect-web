@@ -1730,7 +1730,11 @@ form.append("filename", file?.name || filename || "manual.txt");
 
           <select
             value={fileKind}
-            onChange={(e) => setFileKind(e.target.value as FileKind)}
+            onChange={(e) => {
+              const next = e.target.value as FileKind;
+              setFileKind(next);
+              void loadLatest(next);
+            }}
             style={{
               height: 36,
               borderRadius: 10,
